@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: medicitas-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-medicitas}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medicitas_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-medicitas}
+    ports:
+      - '5433:5432'
+    volumes:
+      - medicitas_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-medicitas} -d ${POSTGRES_DB:-medicitas}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    image: medicitas-api:latest
+    container_name: medicitas-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-medicitas}:${POSTGRES_PASSWORD:-medicitas_dev_password}@db:5432/${POSTGRES_DB:-medicitas}?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret_change_in_production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret_change_in_production}
+    ports:
+      - '3000:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    image: medicitas-web:latest
+    container_name: medicitas-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      API_URL: http://api:3000
+    ports:
+      - '3001:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/ || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+volumes:
+  medicitas_pgdata:
