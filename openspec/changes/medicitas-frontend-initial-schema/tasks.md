@@ -111,10 +111,10 @@
 
 ## 12. Publicación y despliegue continuo (solo tras aprobar el test de seguridad)
 
-- [ ] 12.1 Inicializar git si no existe; revisar `.gitignore` para excluir `.env`, `node_modules`, `dist`, `tsconfig.tsbuildinfo` y artefactos generados; verificar con `git status --ignored`
-- [ ] 12.2 Escanear el árbol a commitear buscando secretos (claves JWT, credenciales) y confirmar que no hay valores reales antes del primer commit
-- [ ] 12.3 Crear `render.yaml` (Blueprint de Render): solo el web service del `Dockerfile` del API con healthcheck `/health`; `DATABASE_URL` y `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` declaradas como secretos a fijar en dashboard (`sync: false`); verificar sintaxis del blueprint
-- [ ] 12.4 Crear commit inicial con todo el código (incluido `render.yaml`) y hacer push a `https://github.com/Angel12328/mediCitas.git` (rama `main`); verificar que el remoto refleja el contenido y que no aparece ningún secreto
+- [x] 12.1 Inicializar git si no existe; revisar `.gitignore` para excluir `.env`, `node_modules`, `dist`, `tsconfig.tsbuildinfo` y artefactos generados; verificar con `git status --ignored`
+- [x] 12.2 Escanear el árbol a commitear buscando secretos (claves JWT, credenciales) y confirmar que no hay valores reales antes del primer commit
+- [x] 12.3 Crear `render.yaml` (Blueprint de Render): solo el web service del `Dockerfile` del API con healthcheck `/health`; `DATABASE_URL` y `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` declaradas como secretos a fijar en dashboard (`sync: false`); verificar sintaxis del blueprint
+- [x] 12.4 Crear commit inicial con todo el código (incluido `render.yaml`) y hacer push a `https://github.com/Angel12328/mediCitas.git` (rama `main`); verificar que el remoto refleja el contenido y que no aparece ningún secreto
 - [ ] 12.5 Conectar el repositorio a Vercel: importar `Angel12328/mediCitas`, fijar Root Directory = `web/` y configurar variables de entorno para producción y preview (sin `API_URL` todavía); verificar que el primer build de producción termina en verde
 - [ ] 12.6 Crear proyecto Postgres en Supabase, obtener la cadena de conexión y ejecutar contra ella migraciones y seed (`prisma migrate deploy` + `npm run db:seed`); verificar tablas creadas y catálogos poblados
 - [ ] 12.7 Importar el repo en Render como Blueprint: crear el web service, fijar `DATABASE_URL` (Supabase) y los JWT secrets en el dashboard, confirmar `/health` en la URL HTTPS pública asignada y fijarla como `API_URL` en Vercel (producción y preview)
