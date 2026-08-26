@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://medicitas.example.com";
+  const base = (process.env.NEXT_PUBLIC_SITE_URL && process.env.NEXT_PUBLIC_SITE_URL.trim() !== "" ? process.env.NEXT_PUBLIC_SITE_URL : "https://medicitas.example.com");
   const now = new Date();
   const publicRoutes = ["/", "/login", "/registro", "/olvide-contrasena", "/restablecer"] as const;
   return publicRoutes.map((route) => ({

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://medicitas.example.com";
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL && process.env.NEXT_PUBLIC_SITE_URL.trim() !== "" ? process.env.NEXT_PUBLIC_SITE_URL : "https://medicitas.example.com");
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
