@@ -1,25 +1,9 @@
-# Render Free — API Dockerfile (multi-stage, build con tsc)
-FROM node:22-alpine AS base
+FROM node:22-alpine
 WORKDIR /app
 COPY package*.json ./
-
-FROM base AS dependencies
-RUN npm ci --ignore-scripts || npm install --ignore-scripts
-
-FROM base AS build
-COPY --from=dependencies /app/node_modules ./node_modules
-COPY tsconfig.json ./
-COPY src ./src
+RUN npm ci --omit=dev --ignore-scripts
+COPY dist ./dist
 COPY prisma ./prisma
-RUN npx tsc
-
-FROM node:22-alpine AS production
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=dependencies /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./prisma
-COPY package.json ./
 EXPOSE 3000
 USER node
 CMD ["node", "dist/main.js"]
