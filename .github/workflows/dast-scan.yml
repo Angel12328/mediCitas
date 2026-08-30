@@ -7,7 +7,7 @@ on:
       target_url:
         description: "Target URL to scan"
         required: true
-        default: "https://web-alpha-ecru-99.vercel.app"
+        default: "https://web-self-eight-c3lnokun26.vercel.app"
 
 jobs:
   zap-baseline:
@@ -21,7 +21,7 @@ jobs:
       - name: ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.12.0
         with:
-          target: ${{ github.event.inputs.target_url || 'https://web-alpha-ecru-99.vercel.app' }}
+          target: ${{ github.event.inputs.target_url || 'https://web-self-eight-c3lnokun26.vercel.app' }}
           rules_file_name: ".zap/rules.tsv"
           cmd_options: "-a -j"
           allow_issue_writing: false
