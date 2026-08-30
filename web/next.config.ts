@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const apiUrl = process.env.API_URL ?? "http://localhost:3000";
+const apiUrl = process.env.API_URL ?? "https://medicitas-api.onrender.com";
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: __dirname,
