@@ -1,0 +1,13 @@
+# Rule ID	Action (IGNORE/WARN/FAIL)	Description
+10003	IGNORE	# Vulnerable JS Library (handled by SCA)
+10015	WARN	# Incomplete or No Cache-control Header
+10021	FAIL	# X-Content-Type-Options Missing
+10035	FAIL	# Strict-Transport-Security Missing
+10038	FAIL	# Content Security Policy Missing
+10098	IGNORE	# Cross-Domain Misconfiguration (CDN)
+40012	FAIL	# Cross Site Scripting (Reflected)
+40014	FAIL	# Cross Site Scripting (Persistent)
+40018	FAIL	# SQL Injection
+40019	FAIL	# SQL Injection (MySQL)
+40032	FAIL	# .htaccess Information Leak
+90033	FAIL	# Loosely Scoped Cookie

@@ -1,0 +1,74 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Render
+        uses: amondnet/render-deploy-action@v25
+        with:
+          service-id: ${{ secrets.RENDER_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+
+      - name: Wait for health check
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://medicitas-api.onrender.com/health || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "Backend healthy"
+              exit 0
+            fi
+            echo "Attempt $i: status $STATUS"
+            sleep 10
+          done
+          echo "Backend health check failed"
+          exit 1
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: web
+
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: web
+
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+        working-directory: web
+
+      - name: Verify deployment
+        run: |
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://web-alpha-ecru-99.vercel.app/citas/agendar" || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "Frontend healthy"
+              exit 0
+            fi
+            echo "Attempt $i: status $STATUS"
+            sleep 5
+          done
+          echo "Frontend verification failed"
+          exit 1

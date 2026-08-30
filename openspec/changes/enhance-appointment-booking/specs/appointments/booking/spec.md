@@ -1,9 +1,4 @@
-# appointments/booking Specification
-
-## Purpose
-Define el flujo completo de reserva de citas médicas: paciente elige especialidad, doctor, horario y fecha mediante un wizard de dos pasos con cards visuales de doctores, calendario interactivo, y filtros; el sistema valida disponibilidad en tiempo real y crea la cita con una posición de cupo asignada tras confirmación explícita.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Paciente busca horarios disponibles
 
@@ -43,11 +38,6 @@ El sistema SHALL validar que existan cupos libres antes de confirmar una cita, t
 - **THEN** horario se muestra como "Completo" y no es seleccionable en el paso 1
 - **AND** doctor card muestra "Sin disponibilidad" si todos sus horarios están completos para esa fecha
 
-#### Scenario: Concurrencia — dos pacientes al mismo tiempo
-- **WHEN** dos pacientes intentan reservar el último cupo simultáneamente
-- **THEN** solo una cita se crea (transacción atómica)
-- **AND** el otro recibe error "Horario completo" y vuelve al paso 1 con disponibilidad actualizada
-
 ### Requirement: Crear cita con posición asignada mediante wizard de 2 pasos
 
 El sistema SHALL crear la cita con una posición única dentro del horario para esa fecha, tras confirmación explícita en un wizard de dos pasos.
@@ -69,6 +59,11 @@ El sistema SHALL crear la cita con una posición única dentro del horario para 
 - **AND** muestra estado de éxito con número de posición
 - **AND** actualiza vista a "Mis Citas" con la nueva cita visible
 
+#### Scenario: Concurrencia — dos pacientes al mismo tiempo
+- **WHEN** dos pacientes confirman el último cupo simultáneamente en paso 2
+- **THEN** solo una cita se crea (transacción atómica a nivel BD)
+- **AND** el otro recibe error "Horario completo" y vuelve al paso 1 con disponibilidad actualizada
+
 ### Requirement: Validaciones de integridad en wizard
 
 El sistema SHALL rechazar reservas que violen restricciones del modelo, validando en ambos pasos del wizard.
@@ -87,7 +82,7 @@ El sistema SHALL rechazar reservas que violen restricciones del modelo, validand
 
 ### Requirement: Cancelar cita libera cupo
 
-El sistema SHALL permitir cancelar citas y liberar el cupo correspondiente.
+El sistema SHALL permitir cancelar citas y liberar el cupo correspondiente (sin cambios en esta funcionalidad, se mantiene especificación existente).
 
 #### Scenario: Cancelación exitosa
 - **WHEN** paciente cancela su cita confirmada desde "Mis Citas"
@@ -105,7 +100,7 @@ El sistema SHALL validar seguridad en el flujo de agendamiento protegiendo contr
 #### Scenario: Rate limiting en búsqueda de disponibilidad
 - **WHEN** paciente hace requests repetidos a `/schedules/availability` en ventana corta
 - **THEN** sistema responde con HTTP 429 y header `Retry-After`
-- **AND** no bloquea usuario legítimo (límite razonable: 30 req/min)
+- **AND` no bloquea usuario legítimo (límite razonable: 30 req/min)
 
 #### Scenario: Input sanitization en búsqueda de doctor
 - **WHEN** paciente inyecta payload XSS en input búsqueda (ej. `<script>alert(1)</script>`)
@@ -131,7 +126,7 @@ El sistema SHALL ser deployable automáticamente a Vercel (frontend) y Render (b
 - **THEN** GitHub Actions ejecuta job `deploy-frontend` con Vercel CLI
 - **THEN** build Next.js exitoso (`npm run build`)
 - **THEN** deploy a `https://web-alpha-ecru-99.vercel.app` con alias de producción
-- **THEN** página `/citas/agendar` accesible y funcional en producción
+- **THEN` página `/citas/agendar` accesible y funcional en producción
 
 #### Scenario: Backend deploy a Render
 - **WHEN** push a branch `main` en GitHub
