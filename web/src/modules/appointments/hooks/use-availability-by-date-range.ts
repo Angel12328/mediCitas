@@ -46,7 +46,7 @@ export function useAvailabilityByDateRange({
   enabled = true,
 }: UseAvailabilityByDateRangeParams) {
   const dates = generateDateRange(startDate, endDate)
-  const canFetch = Boolean(specialtyId && enabled)
+  const canFetch = Boolean(specialtyId && doctorId && enabled)
 
   const queries = useQueries({
     queries: dates.map((date) => ({
