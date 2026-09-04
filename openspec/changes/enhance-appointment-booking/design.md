@@ -63,7 +63,19 @@ Constraints:
 - `react-day-picker` (añade ~15kb, overkill)
 - Input type="date" + lista (pierde visión mensual)
 
-### Decision 4: Filtros separados con estado derivado
+### Decision 4: Campo `cupos` en `HorarioAtencion` — días de atención por semana
+
+**Elección:** El campo `cupos` (entero) en el modelo `Schedule`/`HorarioAtencion` representa el **número de días por semana que el médico atiende en ese horario** (ej: 5 = Lunes-Viernes, 6 = Lunes-Sábado, 3 = Lunes/Miércoles/Viernes). No es capacidad por slot ni pacientes por día.
+
+**Rationale:** Este valor se usa en el calendario interactivo para calcular qué días de la semana el médico está disponible en ese horario. El backend usa `daysBitmask` para saber qué días específicos (L=1, M=2, Mi=4, J=8, V=16, S=32, D=64) y `cupos` para el total de días/semana.
+
+**Implementación en calendario:** Al renderizar el mes, para cada día se verifica si el día de la semana está en `daysBitmask` del horario. Si `daysBitmask` tiene `cupos` bits encendidos, esos son los días laborables. Días con bit encendido = disponible (si hay cupos); días sin bit = deshabilitado.
+
+**Alternativas:**
+- Usar `cupos` como capacidad por slot (conflicta con semántica actual de disponibilidad por día)
+- Campo separado `diasPorSemana` (duplicado, `cupos` ya cumple esa función semánticamente)
+
+### Decision 5: Filtros separados con estado derivado
 
 **Elección:** `specialtyId` (Select) y `doctorSearch` (Input) en estado local. `filteredDoctors = useMemo(() => doctors.filter(d => (!specialtyId || d.specialties?.includes(specialtyId)) && (!doctorSearch || d.fullName.toLowerCase().includes(doctorSearch.toLowerCase()))), [doctors, specialtyId, doctorSearch])`.
 
@@ -73,7 +85,7 @@ Constraints:
 - Server-side filtering (latencia en cada keystroke)
 - Solo dropdown especialidad (pierde búsqueda por nombre)
 
-### Decision 5: Dialog de confirmación (Paso 2)
+### Decision 6: Dialog de confirmación (Paso 2)
 
 **Elección:** `Dialog` de shadcn/ui con `DialogHeader` (título "Confirmar cita"), `DialogContent` (resumen formateado), `DialogFooter` (Button variant="outline" onClick={goBack}, Button onClick={confirm}).
 
@@ -83,19 +95,19 @@ Constraints:
 - Página separada `/citas/agendar/confirmar` (routing extra, pierde estado fácil)
 - Inline panel (menos énfasis en acción irrevocable)
 
-### Decision 6: Formateo de fecha/hora en locale
+### Decision 7: Formateo de fecha/hora en locale
 
 **Elección:** `new Date(`${date}T${startTime}`).toLocaleDateString('es-HN', { weekday: 'long', day: 'numeric', month: 'long' })` y `startTime.slice(0,5)` para hora.
 
 **Rationale:** Usuario en Honduras (timezone America/Tegucigalpa en Schedule). `toLocaleDateString` respeta locale del navegador.
 
-### Decision 7: Accesibilidad - cards como botones
+### Decision 8: Accesibilidad - cards como botones
 
 **Elección:** Doctor card = `<button className="card-wrapper" onClick={selectDoctor} aria-pressed={selected} aria-disabled={!hasAvailability}>...` con `role="button"` implícito. Calendario: `role="grid"`, cada día `role="gridcell"`, día seleccionado `aria-selected="true"`, con disponibilidad `aria-label="Disponible, 3 horarios"`.
 
 **Rationale:** Nativos `<button>` y `role="grid"` son patrones ARIA estándar. Evita `div` + `tabIndex` + key handlers manuales.
 
-### Decision 8: UI Design System con ui-skills
+### Decision 9: UI Design System con ui-skills
 
 **Elección:** Aplicar 4 skills de ui-skills en secuencia:
 1. `baseline-ui` - Fix spacing, hierarchy, typography, layout issues en componentes nuevos
@@ -109,7 +121,7 @@ Constraints:
 - Manual CSS/Tailwind audit (inconsistente, time-consuming)
 - Solo shadcn/ui defaults (no cubre motion, accessibility depth)
 
-### Decision 9: SEO Optimization con marketingskills
+### Decision 10: SEO Optimization con marketingskills
 
 **Elección:** Aplicar 4 skills de marketingskills:
 1. `fixing-metadata` - Page title, meta description, canonical, OG tags, Twitter cards, favicons, JSON-LD, robots
@@ -123,7 +135,7 @@ Constraints:
 - Solo meta tags básicos (pierde rich snippets, AI citations)
 - Schema.org genérico (no específico a medical/appointment)
 
-### Decision 10: QA Testing Strategy con qa-skills
+### Decision 11: QA Testing Strategy con qa-skills
 
 **Elección:** Aplicar 4 skills de qa-skills:
 1. `test-planning` - Sprint test plan para agendamiento feature
@@ -137,7 +149,7 @@ Constraints:
 - Solo unit tests (pierde integration, accessibility, visual)
 - Manual QA only (no scalable, no regression protection)
 
-### Decision 11: Security Testing con Anthropic-Cybersecurity-Skills
+### Decision 12: Security Testing con Anthropic-Cybersecurity-Skills
 
 **Elección:** Post-implementation security testing usando 3 skills:
 1. `integrating-dast-with-owasp-zap-in-pipeline` - OWASP ZAP en GitHub Actions (baseline, full, API scan)
@@ -150,7 +162,7 @@ Constraints:
 - Solo SAST (Semgrep) - no catch runtime vulns
 - Solo manual pentest - no continuous, expensive
 
-### Decision 12: Deployment - Vercel + Render con GitHub Actions
+### Decision 13: Deployment - Vercel + Render con GitHub Actions
 
 **Elección:** GitHub Actions workflow (`.github/workflows/deploy.yml`) con 2 jobs:
 - `deploy-frontend`: Vercel CLI action, `vercel --prod --token=${VERCEL_TOKEN}`, alias `web-alpha-ecru-99.vercel.app`

@@ -28,15 +28,28 @@ El sistema SHALL permitir buscar horarios de atención filtrando por especialida
 
 El sistema SHALL validar que existan cupos libres antes de confirmar una cita, tanto en el paso de selección como en la confirmación final.
 
+**Definición de "cupos":** El campo `cupos` en `HorarioAtencion` representa el número de días que el médico atiende por semana en ese horario (ej: Lunes-Viernes = 5, Lunes-Sábado = 6, Lunes/Miércoles/Viernes = 3). Este valor determina cuántos días por semana el médico está disponible en ese horario para el calendario interactivo.
+
 #### Scenario: Cupo disponible en selección de horario
-- **WHEN** paciente selecciona un horario con `cupos_ocupados < numeroCupos` para la fecha
+- **WHEN** paciente selecciona un horario donde `pacientes_agendados < cupos` para esa fecha y hora de inicio
 - **THEN** sistema permite avanzar al paso de confirmación
 - **AND** horario muestra cupos disponibles en la card/selector
 
 #### Scenario: Sin cupos disponibles - horario no seleccionable
-- **WHEN** un horario tiene `cupos_ocupados >= numeroCupos` para la fecha
+- **WHEN** un horario tiene `pacientes_agendados >= cupos` para esa fecha y hora de inicio
 - **THEN** horario se muestra como "Completo" y no es seleccionable en el paso 1
 - **AND** doctor card muestra "Sin disponibilidad" si todos sus horarios están completos para esa fecha
+
+#### Scenario: Backend cuenta pacientes agendados por horario/día/hora
+- **WHEN** backend recibe consulta de disponibilidad (`/schedules/availability`)
+- **THEN** para cada `HorarioAtencion`, cuenta citas existentes donde `scheduleId = horario.id` AND `date = fecha_consultada` AND `startTime = horario.startTime` AND `status != 'cancelada'`
+- **THEN** `disponible = pacientes_agendados < cupos`
+- **THEN** devuelve `available` boolean y `cupos_restantes = cupos - pacientes_agendados`
+
+#### Scenario: Backend rechaza reserva si no hay cupos en confirmación
+- **WHEN** paciente confirma cita en paso 2 y `pacientes_agendados >= cupos` para ese horario/fecha/hora
+- **THEN** backend rechaza con HTTP 409 y mensaje "Horario completo. No hay cupos disponibles para ese horario"
+- **THEN** frontend muestra error y vuelve al paso 1 con disponibilidad actualizada
 
 ### Requirement: Crear cita con posición asignada mediante wizard de 2 pasos
 
