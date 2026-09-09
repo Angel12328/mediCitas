@@ -88,6 +88,9 @@ async function calculateAvailabilitySummary(
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + daysAhead);
 
+  const startDateStr = startDate.toISOString().slice(0, 10);
+  const endDateStr = endDate.toISOString().slice(0, 10);
+
   // Query raw SQL para calcular disponibilidad agregada por doctor
   // Usa generate_series para expandir horarios a días y LEFT JOIN con appointments
   const results = await prisma.$queryRaw<
@@ -112,8 +115,8 @@ async function calculateAvailabilitySummary(
     ),
     date_series AS (
       SELECT generate_series(
-        ${startDate.toISOString()}::date,
-        ${endDate.toISOString()}::date,
+        ${startDateStr}::date,
+        ${endDateStr}::date,
         interval '1 day'
       )::date AS date
     ),
@@ -128,7 +131,7 @@ async function calculateAvailabilitySummary(
       FROM appointments a
       WHERE a.deleted_at IS NULL
         AND a.status NOT IN ('CANCELLED', 'NO_SHOW')
-        AND a.date BETWEEN ${startDate.toISOString()}::date AND ${endDate.toISOString()}::date
+        AND a.date BETWEEN ${startDateStr} AND ${endDateStr}
       GROUP BY a.schedule_id, a.date
     ),
     availability AS (

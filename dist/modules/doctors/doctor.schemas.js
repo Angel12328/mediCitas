@@ -65,7 +65,8 @@ export const updateScheduleSchema = z
     path: ['endTime'],
 });
 export const scheduleIdParamSchema = z.object({ id: z.string().uuid() });
-export const availabilityQuerySchema = z.object({
+export const availabilityQuerySchema = z
+    .object({
     doctorId: z.string().uuid(),
     specialtyId: z.string().uuid(),
     // Modo fecha única (existente)
@@ -74,7 +75,8 @@ export const availabilityQuerySchema = z.object({
     scheduleId: z.string().uuid().optional(),
     startDate: z.string().date('Formato esperado YYYY-MM-DD').optional(),
     endDate: z.string().date('Formato esperado YYYY-MM-DD').optional(),
-}).refine((data) => {
+})
+    .refine((data) => {
     // Validar que se use uno de los dos modos
     const singleDate = Boolean(data.date);
     const batchMode = Boolean(data.scheduleId && data.startDate && data.endDate);

@@ -47,6 +47,8 @@ async function calculateAvailabilitySummary(specialtyId, daysAhead) {
     startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + daysAhead);
+    const startDateStr = startDate.toISOString().slice(0, 10);
+    const endDateStr = endDate.toISOString().slice(0, 10);
     // Query raw SQL para calcular disponibilidad agregada por doctor
     // Usa generate_series para expandir horarios a días y LEFT JOIN con appointments
     const results = await prisma.$queryRaw(Prisma.sql `
@@ -60,8 +62,8 @@ async function calculateAvailabilitySummary(specialtyId, daysAhead) {
     ),
     date_series AS (
       SELECT generate_series(
-        ${startDate.toISOString()}::date,
-        ${endDate.toISOString()}::date,
+        ${startDateStr}::date,
+        ${endDateStr}::date,
         interval '1 day'
       )::date AS date
     ),
@@ -76,7 +78,7 @@ async function calculateAvailabilitySummary(specialtyId, daysAhead) {
       FROM appointments a
       WHERE a.deleted_at IS NULL
         AND a.status NOT IN ('CANCELLED', 'NO_SHOW')
-        AND a.date BETWEEN ${startDate.toISOString()}::date AND ${endDate.toISOString()}::date
+        AND a.date BETWEEN ${startDateStr} AND ${endDateStr}
       GROUP BY a.schedule_id, a.date
     ),
     availability AS (
@@ -238,7 +240,9 @@ export async function doctorRoutes(app) {
         const [doctors, total] = await Promise.all([
             prisma.doctor.findMany({
                 where: whereWithIds,
-                orderBy: sort === 'name' ? { employee: { user: { person: { firstName: 'asc' } } } } : { createdAt: 'desc' },
+                orderBy: sort === 'name'
+                    ? { employee: { user: { person: { firstName: 'asc' } } } }
+                    : { createdAt: 'desc' },
                 skip: params.skip,
                 take: params.take,
                 include: {

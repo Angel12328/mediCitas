@@ -73,8 +73,12 @@ export async function scheduleRoutes(app) {
                 },
                 _count: { _all: true },
             });
-            const bookedMap = new Map(booked.map((b) => [`${b.scheduleId}-${b.date.toISOString().slice(0, 10)}`, b._count._all]));
-            const items = dates.map((d) => {
+            const bookedMap = new Map(booked.map((b) => [
+                `${b.scheduleId}-${b.date.toISOString().slice(0, 10)}`,
+                b._count._all,
+            ]));
+            const items = dates
+                .map((d) => {
                 const bookedCount = bookedMap.get(`${targetSchedule.id}-${d}`) ?? 0;
                 const available = targetSchedule.slotCapacity - bookedCount;
                 return {
@@ -86,7 +90,8 @@ export async function scheduleRoutes(app) {
                     booked: bookedCount,
                     available,
                 };
-            }).filter((slot) => slot.available > 0); // excluir cupos completos
+            })
+                .filter((slot) => slot.available > 0); // excluir cupos completos
             return { scheduleId: scheduleId, items, daysBitmask: targetSchedule.daysBitmask };
         }
         // Modo fecha única (existente)
