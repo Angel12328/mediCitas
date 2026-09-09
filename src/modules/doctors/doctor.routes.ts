@@ -13,7 +13,6 @@ import {
   updateDoctorSchema,
 } from './doctor.schemas.js';
 import { validate } from '../../shared/validation/validate.js';
-import { Prisma } from '../../generated/prisma/client.js';
 
 const adminOnly = [authenticate, requireRoles('ADMIN')];
 
@@ -88,104 +87,108 @@ async function calculateAvailabilitySummary(
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + daysAhead);
 
-  const startDateStr = startDate.toISOString().slice(0, 10);
-  const endDateStr = endDate.toISOString().slice(0, 10);
+  // 1. Obtener horarios activos del doctor para la especialidad
+  const schedules = await prisma.schedule.findMany({
+    where: {
+      specialtyId,
+      deletedAt: null,
+      status: 'ACTIVE',
+    },
+    select: {
+      id: true,
+      doctorId: true,
+      specialtyId: true,
+      daysBitmask: true,
+      startTime: true,
+      endTime: true,
+      slotCapacity: true,
+    },
+  });
 
-  // Query raw SQL para calcular disponibilidad agregada por doctor
-  // Usa generate_series para expandir horarios a días y LEFT JOIN con appointments
-  // Nota: Prisma.sql usa parameter binding, así que pasamos las fechas como strings
-  // y PostgreSQL hace cast implícito a DATE al comparar con columnas DATE
-  const results = await prisma.$queryRaw<
-    Array<{
-      doctor_id: string;
-      schedule_id: string;
-      start_time: string;
-      end_time: string;
-      slot_capacity: number;
-      days_bitmask: number;
-      date: Date;
-      booked: bigint;
-    }>
-  >(Prisma.sql`
-    WITH doctor_schedules AS (
-      SELECT s.id AS schedule_id, s.doctor_id, s.specialty_id, s.days_bitmask,
-             s.start_time, s.end_time, s.slot_capacity
-      FROM schedules s
-      WHERE s.specialty_id = ${specialtyId}
-        AND s.deleted_at IS NULL
-        AND s.status = 'ACTIVE'
-    ),
-    date_series AS (
-      SELECT generate_series(
-        ${startDateStr},
-        ${endDateStr},
-        interval '1 day'
-      )::date AS date
-    ),
-    schedule_dates AS (
-      SELECT ds.date, ds_schedule.*
-      FROM date_series ds
-      CROSS JOIN doctor_schedules ds_schedule
-      WHERE ds_schedule.days_bitmask & (1 << EXTRACT(DOW FROM ds.date)::int) > 0
-    ),
-    booked_counts AS (
-      SELECT a.schedule_id, a.date, COUNT(*) AS booked
-      FROM appointments a
-      WHERE a.deleted_at IS NULL
-        AND a.status NOT IN ('CANCELLED', 'NO_SHOW')
-        AND a.date BETWEEN ${startDateStr} AND ${endDateStr}
-      GROUP BY a.schedule_id, a.date
-    ),
-    availability AS (
-      SELECT sd.doctor_id, sd.schedule_id, sd.start_time, sd.end_time,
-             sd.slot_capacity, sd.date,
-             COALESCE(bc.booked, 0) AS booked
-      FROM schedule_dates sd
-      LEFT JOIN booked_counts bc
-        ON bc.schedule_id = sd.schedule_id AND bc.date = sd.date
-    )
-    SELECT doctor_id, schedule_id, start_time, end_time, slot_capacity,
-           days_bitmask, date, booked
-    FROM availability a
-    JOIN doctor_schedules ds ON ds.id = a.schedule_id
-    ORDER BY doctor_id, date, start_time
-  `);
+  if (schedules.length === 0) return {};
 
-  // Agregar resultados por doctor
+  // 2. Generar todas las fechas en rango que coincidan con daysBitmask
+  const scheduleDates: Array<{
+    doctorId: string;
+    scheduleId: string;
+    startTime: string;
+    endTime: string;
+    slotCapacity: number;
+    date: Date;
+  }> = [];
+
+  for (const s of schedules) {
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      const dow = current.getUTCDay(); // 0=Dom, 1=Lun...
+      const bit = 1 << dow;
+      if (s.daysBitmask & bit) {
+        scheduleDates.push({
+          doctorId: s.doctorId,
+          scheduleId: s.id,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          slotCapacity: s.slotCapacity,
+          date: new Date(current),
+        });
+      }
+      current.setDate(current.getDate() + 1);
+    }
+  }
+
+  if (scheduleDates.length === 0) return {};
+
+  // 3. Obtener booked counts para todas esas fechas en una query
+  const dateStrings = scheduleDates.map((sd) => sd.date.toISOString().slice(0, 10));
+  const uniqueDates = [...new Set(dateStrings)];
+
+  const bookedCounts = await prisma.appointment.groupBy({
+    by: ['scheduleId', 'date'],
+    where: {
+      scheduleId: { in: schedules.map((s) => s.id) },
+      date: { in: uniqueDates.map((d) => new Date(`${d}T00:00:00Z`)) },
+      deletedAt: null,
+      status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+    },
+    _count: { _all: true },
+  });
+
+  const bookedMap = new Map(
+    bookedCounts.map((b) => [`${b.scheduleId}-${b.date.toISOString().slice(0, 10)}`, b._count._all]),
+  );
+
+  // 4. Agregar por doctor
   const summaryByDoctor: Record<string, AvailabilitySummary> = {};
 
-  for (const row of results) {
-    const doctorId = row.doctor_id;
-    if (!summaryByDoctor[doctorId]) {
-      summaryByDoctor[doctorId] = {
-        hasAvailabilityThisWeek: false,
-        hasAvailabilityThisMonth: false,
-        nextAvailableDate: null,
-        nextSlot: null,
-        totalSlotsThisMonth: 0,
-        totalAvailableThisMonth: 0,
-      };
-    }
-    const summary = summaryByDoctor[doctorId];
+  for (const sd of scheduleDates) {
+    const dateStr = sd.date.toISOString().slice(0, 10);
+    const booked = bookedMap.get(`${sd.scheduleId}-${dateStr}`) ?? 0;
+    const available = sd.slotCapacity - booked;
 
-    const available = Number(row.slot_capacity) - Number(row.booked);
-    const dateStr = row.date.toISOString().slice(0, 10);
-    const isThisWeek = new Date(row.date) <= new Date(Date.now() + 7 * 86400000);
+    const summary = (summaryByDoctor[sd.doctorId] ??= {
+      hasAvailabilityThisWeek: false,
+      hasAvailabilityThisMonth: false,
+      nextAvailableDate: null,
+      nextSlot: null,
+      totalSlotsThisMonth: 0,
+      totalAvailableThisMonth: 0,
+    });
 
     summary.totalSlotsThisMonth += 1;
     if (available > 0) {
       summary.totalAvailableThisMonth += available;
       summary.hasAvailabilityThisMonth = true;
+      const isThisWeek = sd.date <= new Date(Date.now() + 7 * 86400000);
       if (isThisWeek) summary.hasAvailabilityThisWeek = true;
 
       if (!summary.nextAvailableDate || dateStr < summary.nextAvailableDate) {
         summary.nextAvailableDate = dateStr;
         summary.nextSlot = {
-          scheduleId: row.schedule_id,
-          startTime: row.start_time,
-          endTime: row.end_time,
+          scheduleId: sd.scheduleId,
+          startTime: sd.startTime,
+          endTime: sd.endTime,
           available,
-          total: Number(row.slot_capacity),
+          total: sd.slotCapacity,
         };
       }
     }
