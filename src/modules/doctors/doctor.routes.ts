@@ -93,6 +93,8 @@ async function calculateAvailabilitySummary(
 
   // Query raw SQL para calcular disponibilidad agregada por doctor
   // Usa generate_series para expandir horarios a días y LEFT JOIN con appointments
+  // Nota: Prisma.sql usa parameter binding, así que pasamos las fechas como strings
+  // y PostgreSQL hace cast implícito a DATE al comparar con columnas DATE
   const results = await prisma.$queryRaw<
     Array<{
       doctor_id: string;
@@ -115,8 +117,8 @@ async function calculateAvailabilitySummary(
     ),
     date_series AS (
       SELECT generate_series(
-        ${startDateStr}::date,
-        ${endDateStr}::date,
+        ${startDateStr},
+        ${endDateStr},
         interval '1 day'
       )::date AS date
     ),
