@@ -61,21 +61,27 @@ async function requireDoctor(doctorId: string): Promise<DoctorDetail> {
     fullName: `${doctor.employee.user.person.firstName} ${doctor.employee.user.person.lastName}`,
     email: doctor.employee.user.email,
     specialties: doctor.specialties.map((s) => s.specialty),
-};
+  };
 }
 
 interface AvailabilitySummary {
   hasAvailabilityThisWeek: boolean;
   hasAvailabilityThisMonth: boolean;
   nextAvailableDate: string | null;
-  nextSlot: { scheduleId: string; startTime: string; endTime: string; available: number; total: number } | null;
+  nextSlot: {
+    scheduleId: string;
+    startTime: string;
+    endTime: string;
+    available: number;
+    total: number;
+  } | null;
   totalSlotsThisMonth: number;
   totalAvailableThisMonth: number;
 }
 
 async function calculateAvailabilitySummary(
   specialtyId: string,
-  daysAhead: number
+  daysAhead: number,
 ): Promise<Record<string, AvailabilitySummary>> {
   const startDate = new Date();
   startDate.setHours(0, 0, 0, 0);
@@ -310,7 +316,10 @@ export async function doctorRoutes(app: AnyFastifyInstance): Promise<void> {
     const [doctors, total] = await Promise.all([
       prisma.doctor.findMany({
         where: whereWithIds,
-        orderBy: sort === 'name' ? { employee: { user: { person: { firstName: 'asc' } } } } : { createdAt: 'desc' },
+        orderBy:
+          sort === 'name'
+            ? { employee: { user: { person: { firstName: 'asc' } } } }
+            : { createdAt: 'desc' },
         skip: params.skip,
         take: params.take,
         include: {

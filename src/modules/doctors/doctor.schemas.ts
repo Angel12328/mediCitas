@@ -80,24 +80,30 @@ export const updateScheduleSchema = z
 
 export const scheduleIdParamSchema = z.object({ id: z.string().uuid() });
 
-export const availabilityQuerySchema = z.object({
-  doctorId: z.string().uuid(),
-  specialtyId: z.string().uuid(),
-  // Modo fecha única (existente)
-  date: z.string().date('Formato esperado YYYY-MM-DD').optional(),
-  // Modo batch por rango (nuevo) - requiere scheduleId + rango
-  scheduleId: z.string().uuid().optional(),
-  startDate: z.string().date('Formato esperado YYYY-MM-DD').optional(),
-  endDate: z.string().date('Formato esperado YYYY-MM-DD').optional(),
-}).refine((data) => {
-  // Validar que se use uno de los dos modos
-  const singleDate = Boolean(data.date);
-  const batchMode = Boolean(data.scheduleId && data.startDate && data.endDate);
-  return singleDate || batchMode;
-}, {
-  message: 'Debe proporcionar "date" (modo fecha única) O "scheduleId + startDate + endDate" (modo batch)',
-  path: ['date'],
-});
+export const availabilityQuerySchema = z
+  .object({
+    doctorId: z.string().uuid(),
+    specialtyId: z.string().uuid(),
+    // Modo fecha única (existente)
+    date: z.string().date('Formato esperado YYYY-MM-DD').optional(),
+    // Modo batch por rango (nuevo) - requiere scheduleId + rango
+    scheduleId: z.string().uuid().optional(),
+    startDate: z.string().date('Formato esperado YYYY-MM-DD').optional(),
+    endDate: z.string().date('Formato esperado YYYY-MM-DD').optional(),
+  })
+  .refine(
+    (data) => {
+      // Validar que se use uno de los dos modos
+      const singleDate = Boolean(data.date);
+      const batchMode = Boolean(data.scheduleId && data.startDate && data.endDate);
+      return singleDate || batchMode;
+    },
+    {
+      message:
+        'Debe proporcionar "date" (modo fecha única) O "scheduleId + startDate + endDate" (modo batch)',
+      path: ['date'],
+    },
+  );
 
 export const schedulesQuerySchema = z.object({
   doctorId: z.string().uuid().optional(),

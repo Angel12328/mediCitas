@@ -43,6 +43,14 @@ export interface DoctorItem {
   fullName: string;
   specialties?: string[];
   status: string;
+  availabilitySummary?: {
+    hasAvailabilityThisWeek: boolean;
+    hasAvailabilityThisMonth: boolean;
+    nextAvailableDate: string | null;
+    nextSlot: { scheduleId: string; startTime: string; endTime: string; available: number; total: number } | null;
+    totalSlotsThisMonth: number;
+    totalAvailableThisMonth: number;
+  };
 }
 
 async function getPage<T>(path: string): Promise<Page<T>> {
@@ -191,12 +199,41 @@ export function useHistorialCargos(employeeId: string | null) {
   });
 }
 
+interface UseDoctoresOptions {
+  specialtyId?: string;
+  withAvailability?: boolean;
+  daysAhead?: number;
+  sort?: "availability" | "name" | "createdAt";
+  filter?: "hasAvailabilityThisWeek";
+  page?: number;
+  pageSize?: number;
+}
+
 // ==================== Doctores ====================
-export function useDoctores(specialtyId?: string) {
+export function useDoctores(options: UseDoctoresOptions = {}) {
+  const {
+    specialtyId,
+    withAvailability,
+    daysAhead = 30,
+    sort,
+    filter,
+    page = 1,
+    pageSize = 10,
+  } = options;
+
+  const qs = new URLSearchParams();
+  if (specialtyId) qs.set("specialtyId", specialtyId);
+  if (withAvailability) qs.set("withAvailability", "1");
+  if (daysAhead) qs.set("daysAhead", String(daysAhead));
+  if (sort) qs.set("sort", sort);
+  if (filter) qs.set("filter", filter);
+  qs.set("page", String(page));
+  qs.set("pageSize", String(pageSize));
+
   return useQuery({
-    queryKey: ["doctores", specialtyId],
-    queryFn: () =>
-      getPage<DoctorItem>(`/doctors${qs({ specialtyId, pageSize: 10 })}`),
+    queryKey: ["doctores", qs.toString()],
+    queryFn: () => getPage<DoctorItem>(`/doctors?${qs}`),
+    staleTime: 1000 * 30,
   });
 }
 

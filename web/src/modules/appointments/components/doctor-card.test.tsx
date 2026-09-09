@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 import { DoctorCard } from "./doctor-card"
 import type { DoctorItem } from "@/modules/staff-admin/queries"
 import type { AvailabilitySlot } from "@/modules/schedules/queries"
+import type { ScheduleItem } from "@/modules/schedules/queries"
 
 const baseDoctor: DoctorItem = {
   id: "doc-1",
@@ -13,22 +14,36 @@ const baseDoctor: DoctorItem = {
   status: "ACTIVE",
 }
 
-const slot: AvailabilitySlot = {
-  scheduleId: "sched-1",
-  startTime: "08:00",
-  endTime: "12:00",
-  slotCapacity: 10,
-  booked: 2,
-  available: 8,
-}
+const schedules: ScheduleItem[] = [
+  {
+    id: "sched-1",
+    doctorName: "Dr. Test",
+    specialtyName: "Cardiología",
+    daysBitmask: 62, // Lun-Vie (bits 1-5)
+    startTime: "08:00",
+    endTime: "12:00",
+    slotCapacity: 10,
+    status: "ACTIVE",
+  },
+  {
+    id: "sched-2",
+    doctorName: "Dr. Test",
+    specialtyName: "Cardiología",
+    daysBitmask: 32, // Sáb (bit 5)
+    startTime: "09:00",
+    endTime: "13:00",
+    slotCapacity: 8,
+    status: "ACTIVE",
+  },
+]
 
-const fullSlot: AvailabilitySlot = {
-  scheduleId: "sched-2",
-  startTime: "14:00",
-  endTime: "18:00",
-  slotCapacity: 5,
-  booked: 5,
-  available: 0,
+const availabilitySummary = {
+  hasAvailabilityThisWeek: true,
+  hasAvailabilityThisMonth: true,
+  nextAvailableDate: "2026-09-08",
+  nextSlot: { scheduleId: "sched-1", startTime: "08:00", endTime: "12:00", available: 8, total: 10 },
+  totalSlotsThisMonth: 20,
+  totalAvailableThisMonth: 80,
 }
 
 describe("DoctorCard", () => {
@@ -37,41 +52,49 @@ describe("DoctorCard", () => {
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
+        schedules={schedules}
+        availabilitySummary={availabilitySummary}
         selected={false}
         disabled={false}
         onSelect={vi.fn()}
+        onViewAgenda={vi.fn()}
       />
     )
     expect(screen.getByText("Dr. Test")).toBeInTheDocument()
     expect(screen.getByText("Cardiología")).toBeInTheDocument()
   })
 
-  it("shows next slot time and available cups", () => {
+  it("shows schedule summary and next available slot", () => {
     render(
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        nextSlot={slot}
+        schedules={schedules}
+        availabilitySummary={availabilitySummary}
         selected={false}
         disabled={false}
         onSelect={vi.fn()}
+        onViewAgenda={vi.fn()}
       />
     )
     const card = screen.getByTestId("doctor-card-doc-1")
+    expect(within(card).getByText(/Lun–Vie/)).toBeInTheDocument()
     expect(within(card).getByText(/08:00/)).toBeInTheDocument()
-    expect(within(card).getByText(/12:00/)).toBeInTheDocument()
-    expect(within(card).getByText(/cupos/)).toBeInTheDocument()
+    expect(within(card).getByText(/cupos próximo/)).toBeInTheDocument()
+    expect(within(card).getByText("8/10")).toBeInTheDocument()
   })
 
-  it("shows 'Sin disponibilidad' when no nextSlot", () => {
+  it("shows 'Sin disponibilidad' when no availabilitySummary", () => {
     render(
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        nextSlot={null}
+        schedules={schedules}
+        availabilitySummary={undefined}
         selected={false}
         disabled={false}
         onSelect={vi.fn()}
+        onViewAgenda={vi.fn()}
       />
     )
     expect(screen.getByText("Sin disponibilidad")).toBeInTheDocument()
@@ -83,42 +106,60 @@ describe("DoctorCard", () => {
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        nextSlot={slot}
+        schedules={schedules}
+        availabilitySummary={availabilitySummary}
         selected={false}
         disabled={false}
         onSelect={onSelect}
+        onViewAgenda={vi.fn()}
       />
     )
-    await userEvent.click(screen.getByRole("button"))
+    // Click the main card button (not the "Ver agenda" button)
+    await userEvent.click(screen.getByTestId("doctor-card-doc-1"))
     expect(onSelect).toHaveBeenCalledWith("doc-1")
   })
 
-  it("is aria-disabled when disabled prop is true", () => {
+  it("calls onViewAgenda when 'Ver agenda' button clicked", async () => {
+    const onViewAgenda = vi.fn()
     render(
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        nextSlot={fullSlot}
-        selected={false}
-        disabled={true}
-        onSelect={vi.fn()}
-      />
-    )
-    expect(screen.getByRole("button")).toHaveAttribute("aria-disabled", "true")
-  })
-
-  it("is aria-disabled when nextSlot has 0 available", () => {
-    render(
-      <DoctorCard
-        doctor={baseDoctor}
-        specialtyName="Cardiología"
-        nextSlot={fullSlot}
+        schedules={schedules}
+        availabilitySummary={availabilitySummary}
         selected={false}
         disabled={false}
         onSelect={vi.fn()}
+        onViewAgenda={onViewAgenda}
       />
     )
-    expect(screen.getByRole("button")).toHaveAttribute("aria-disabled", "true")
+    await userEvent.click(screen.getByText("Ver agenda"))
+    expect(onViewAgenda).toHaveBeenCalledWith("doc-1")
+  })
+
+  it("is disabled when availabilitySummary has no availability this month", () => {
+    render(
+      <DoctorCard
+        doctor={baseDoctor}
+        specialtyName="Cardiología"
+        schedules={schedules}
+        availabilitySummary={{
+          hasAvailabilityThisWeek: false,
+          hasAvailabilityThisMonth: false,
+          nextAvailableDate: null,
+          nextSlot: null,
+          totalSlotsThisMonth: 0,
+          totalAvailableThisMonth: 0,
+        }}
+        selected={false}
+        disabled={false}
+        onSelect={vi.fn()}
+        onViewAgenda={vi.fn()}
+      />
+    )
+    const card = screen.getByTestId("doctor-card-doc-1")
+    expect(card).toBeDisabled()
+    expect(screen.getByText("Sin disponibilidad")).toBeInTheDocument()
   })
 
   it("has aria-pressed true when selected", () => {
@@ -126,13 +167,16 @@ describe("DoctorCard", () => {
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        nextSlot={slot}
+        schedules={schedules}
+        availabilitySummary={availabilitySummary}
         selected={true}
         disabled={false}
         onSelect={vi.fn()}
+        onViewAgenda={vi.fn()}
       />
     )
-    expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true")
+    const card = screen.getByTestId("doctor-card-doc-1")
+    expect(card).toHaveAttribute("aria-pressed", "true")
   })
 
   it("has aria-pressed false when not selected", () => {
@@ -140,12 +184,15 @@ describe("DoctorCard", () => {
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        nextSlot={slot}
+        schedules={schedules}
+        availabilitySummary={availabilitySummary}
         selected={false}
         disabled={false}
         onSelect={vi.fn()}
+        onViewAgenda={vi.fn()}
       />
     )
-    expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false")
+    const card = screen.getByTestId("doctor-card-doc-1")
+    expect(card).toHaveAttribute("aria-pressed", "false")
   })
 })

@@ -28,7 +28,7 @@ import {
 export function DoctoresView() {
   const [specialtyId, setSpecialtyId] = useState("");
   const [nuevoEmployeeId, setNuevoEmployeeId] = useState("");
-  const doctores = useDoctores(specialtyId || undefined);
+  const doctores = useDoctores({ specialtyId: specialtyId || undefined });
   const especialidades = useEspecialidades();
   const crear = useCrearDoctor();
   const estado = useEstadoDoctor();

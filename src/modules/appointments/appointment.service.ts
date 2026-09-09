@@ -249,7 +249,12 @@ export const TRANSITIONS: TransitionMap = {
   CANCELLED: {},
   NO_SHOW: {},
 };
-export function canTransition(current: StatusKey, next: StatusKey, isOwner: boolean, isStaff: boolean) {
+export function canTransition(
+  current: StatusKey,
+  next: StatusKey,
+  isOwner: boolean,
+  isStaff: boolean,
+) {
   const rule = TRANSITIONS[current]?.[next];
   if (!rule) return false;
   if (rule === 'ANY') return isOwner || isStaff;

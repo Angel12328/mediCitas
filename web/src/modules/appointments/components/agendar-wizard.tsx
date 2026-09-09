@@ -2,12 +2,10 @@
 import { useState, useMemo, useCallback } from "react"
 import { useEspecialidades } from "@/modules/catalogs/queries"
 import { useDoctores, type DoctorItem } from "@/modules/staff-admin/queries"
-import { useAvailability } from "@/modules/schedules/queries"
-import type { AvailabilitySlot } from "@/modules/schedules/queries"
+import { useDoctorSchedules, useAvailability } from "@/modules/schedules/queries"
 import { useBookAppointment } from "../queries"
-import { useAvailabilityByDateRange } from "../hooks/use-availability-by-date-range"
 import { DoctorCard } from "./doctor-card"
-import { MonthCalendar } from "./month-calendar"
+import { ScheduleDialog } from "./schedule-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,19 +28,8 @@ interface Selection {
   scheduleId: string
 }
 
-interface DateRange {
-  start: string
-  end: string
-}
-
 function toISODate(d: Date): string {
   return d.toISOString().slice(0, 10)
-}
-
-function monthRange(year: number, month: number): DateRange {
-  const start = new Date(year, month, 1)
-  const end = new Date(year, month + 1, 0)
-  return { start: toISODate(start), end: toISODate(end) }
 }
 
 function formatFecha(date: string): string {
@@ -69,27 +56,25 @@ export function AgendarWizard() {
   const [doctorSearch, setDoctorSearch] = useState("")
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [calendarRange, setCalendarRange] = useState<DateRange>(() => {
-    const now = new Date()
-    return monthRange(now.getFullYear(), now.getMonth())
-  })
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
 
   const especialidades = useEspecialidades()
-  const doctores = useDoctores(selection.specialtyId || undefined)
-  const availability = useAvailability(
-    selection.doctorId || undefined,
-    selection.specialtyId || undefined,
-    selection.date || undefined
-  )
+
+  // Fetch doctors with availability summary
+  const doctores = useDoctores({
+    specialtyId: selection.specialtyId || undefined,
+    withAvailability: true,
+    daysAhead: 30,
+    sort: "availability",
+  })
+
   const book = useBookAppointment()
 
-  const { availabilityByDate } = useAvailabilityByDateRange({
-    specialtyId: selection.specialtyId || undefined,
-    doctorId: selection.doctorId || undefined,
-    startDate: calendarRange.start,
-    endDate: calendarRange.end,
-    enabled: Boolean(selection.specialtyId),
-  })
+  // Fetch schedules for selected doctor (for ScheduleDialog)
+  const doctorSchedules = useDoctorSchedules(
+    selection.doctorId || undefined,
+    selection.specialtyId || undefined
+  )
 
   const filteredDoctors = useMemo(() => {
     const items = (doctores.data?.items ?? []) as DoctorItem[]
@@ -98,26 +83,10 @@ export function AgendarWizard() {
     return items.filter((d) => d.fullName.toLowerCase().includes(search))
   }, [doctores.data?.items, doctorSearch])
 
-  const doctorSlotsByDate = useMemo(() => {
-    const map = new Map<string, AvailabilitySlot[]>()
-    if (!selection.doctorId) return map
-    availabilityByDate.forEach((slots, date) => {
-      map.set(date, slots.filter((s) => s.available > 0))
-    })
-    return map
-  }, [availabilityByDate, selection.doctorId])
-
   const selectedDoctor = useMemo(() => {
     if (!selection.doctorId) return null
     return filteredDoctors.find((d) => d.id === selection.doctorId) ?? null
   }, [filteredDoctors, selection.doctorId])
-
-  const selectedSlot = useMemo(() => {
-    if (!selection.scheduleId) return null
-    return (availability.data?.items ?? []).find(
-      (s: AvailabilitySlot) => s.scheduleId === selection.scheduleId
-    ) ?? null
-  }, [availability.data?.items, selection.scheduleId])
 
   const selectedSpecialtyName = useMemo(() => {
     return especialidades.data?.find((e) => e.id === selection.specialtyId)?.name ?? ""
@@ -127,6 +96,17 @@ export function AgendarWizard() {
     selection.doctorId && selection.date && selection.scheduleId
   )
 
+  const availability = useAvailability(
+    selection.doctorId || undefined,
+    selection.specialtyId || undefined,
+    selection.date || undefined
+  )
+
+  const selectedSlot = useMemo(() => {
+    if (!selection.scheduleId) return null
+    return availability.data?.items?.find((s) => s.scheduleId === selection.scheduleId) ?? null
+  }, [availability.data?.items, selection.scheduleId])
+
   const handleSpecialtyChange = useCallback((id: string) => {
     setSelection((s) => ({ ...s, specialtyId: id, doctorId: "", scheduleId: "" }))
     setDoctorSearch("")
@@ -134,18 +114,17 @@ export function AgendarWizard() {
 
   const handleDoctorSelect = useCallback((doctorId: string) => {
     setSelection((s) => ({ ...s, doctorId, scheduleId: "" }))
+    setScheduleDialogOpen(true)
   }, [])
 
-  const handleDateSelect = useCallback((date: string) => {
-    setSelection((s) => ({ ...s, date, scheduleId: "" }))
+  const handleViewAgenda = useCallback((doctorId: string) => {
+    setSelection((s) => ({ ...s, doctorId, scheduleId: "" }))
+    setScheduleDialogOpen(true)
   }, [])
 
-  const handleMonthChange = useCallback((year: number, month: number) => {
-    setCalendarRange(monthRange(year, month))
-  }, [])
-
-  const handleSlotSelect = useCallback((scheduleId: string) => {
-    setSelection((s) => ({ ...s, scheduleId }))
+  const handleScheduleSelect = useCallback((scheduleId: string, date: string) => {
+    setSelection((s) => ({ ...s, scheduleId, date }))
+    setScheduleDialogOpen(false)
   }, [])
 
   const handleContinue = useCallback(() => {
@@ -220,6 +199,22 @@ export function AgendarWizard() {
             </div>
           </div>
 
+          {/* Availability filter */}
+          {selection.specialtyId && (
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="ag-filter-week"
+                checked={false}
+                onChange={() => {}}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <Label htmlFor="ag-filter-week" className="text-sm cursor-pointer">
+                Solo con disponibilidad esta semana
+              </Label>
+            </div>
+          )}
+
           {/* Doctor Cards Grid */}
           {selection.specialtyId && (
             <div>
@@ -227,84 +222,22 @@ export function AgendarWizard() {
                 {filteredDoctors.length} doctor{filteredDoctors.length !== 1 ? "es" : ""} encontrado{filteredDoctors.length !== 1 ? "s" : ""}
               </p>
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredDoctors.map((doctor) => {
-                  const daySlots = doctorSlotsByDate.get(selection.date) ?? []
-                  const nextSlot = daySlots.find((s) => s.available > 0) ?? null
-                  return (
-                    <DoctorCard
-                      key={doctor.id}
-                      doctor={doctor}
-                      specialtyName={selectedSpecialtyName}
-                      nextSlot={nextSlot}
-                      selected={doctor.id === selection.doctorId}
-                      disabled={!nextSlot}
-                      onSelect={handleDoctorSelect}
-                    />
-                  )
-                })}
+                {filteredDoctors.map((doctor) => (
+                  <DoctorCard
+                    key={doctor.id}
+                    doctor={doctor}
+                    specialtyName={selectedSpecialtyName}
+                    schedules={doctorSchedules.data?.filter(s => s.doctorName.includes(doctor.fullName.split(" ")[1])) ?? []}
+                    availabilitySummary={doctor.availabilitySummary}
+                    selected={doctor.id === selection.doctorId}
+                    disabled={!doctor.availabilitySummary?.hasAvailabilityThisMonth}
+                    onSelect={handleDoctorSelect}
+                    onViewAgenda={handleViewAgenda}
+                  />
+                ))}
               </div>
             </div>
           )}
-
-          {/* Calendar + Time Slots */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div>
-              <Label className="mb-2 block">Selecciona fecha</Label>
-              <MonthCalendar
-                selectedDate={selection.date}
-                availabilityByDate={availabilityByDate}
-                onDateSelect={handleDateSelect}
-                onMonthChange={handleMonthChange}
-              />
-            </div>
-
-            <div>
-              <Label className="mb-2 block">
-                {selection.date ? `Horarios para ${formatFecha(selection.date)}` : "Selecciona una fecha"}
-              </Label>
-              {(availability.data?.items?.length ?? 0) > 0 ? (
-                <ul className="grid gap-2" role="listbox" aria-label="Horarios disponibles">
-                  {availability.data!.items.map((s: AvailabilitySlot) => (
-                    <li key={s.scheduleId}>
-                      <button
-                        type="button"
-                        onClick={() => handleSlotSelect(s.scheduleId)}
-                        disabled={s.available <= 0}
-                        aria-selected={s.scheduleId === selection.scheduleId}
-                        aria-label={`${formatHora(s.startTime)} a ${formatHora(s.endTime)}, ${s.available} cupos libres de ${s.slotCapacity}`}
-                        data-testid={`slot-${s.scheduleId}`}
-                        role="option"
-                        className={cn(
-                          "w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-all",
-                          "outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                          s.available <= 0 && "opacity-50 cursor-not-allowed",
-                          s.scheduleId === selection.scheduleId && "border-primary bg-primary/5 ring-1 ring-primary",
-                          s.scheduleId !== selection.scheduleId && s.available > 0 && "hover:border-primary/50 hover:bg-accent/50"
-                        )}
-                      >
-                        <span className="font-medium">
-                          {formatHora(s.startTime)}–{formatHora(s.endTime)}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {s.available} cupos libres de {s.slotCapacity}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : availability.isFetched && !availability.isFetching ? (
-                <p className="text-sm text-muted-foreground">
-                  Sin horarios disponibles para esa fecha.
-                </p>
-              ) : selection.date && selection.specialtyId ? (
-                <p className="text-sm text-muted-foreground">Cargando horarios...</p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Selecciona una especialidad y fecha para ver horarios.
-                </p>
-              )}
-            </div>
-          </div>
 
           {/* Continue Button */}
           <div className="flex justify-end">
@@ -341,7 +274,7 @@ export function AgendarWizard() {
             </DialogDescription>
           </DialogHeader>
 
-          {selectedDoctor && selectedSlot && (
+          {selectedDoctor && (
             <div className="grid gap-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Doctor</span>
@@ -358,12 +291,12 @@ export function AgendarWizard() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Hora</span>
                 <span className="font-medium text-right">
-                  {formatHora(selectedSlot.startTime)} – {formatHora(selectedSlot.endTime)}
+                  {formatHora(selectedSlot?.startTime ?? "")} – {formatHora(selectedSlot?.endTime ?? "")}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Cupos disponibles</span>
-                <span className="font-medium text-right">{selectedSlot.available}</span>
+                <span className="font-medium text-right">{selectedSlot?.available ?? 0}</span>
               </div>
             </div>
           )}
@@ -383,6 +316,18 @@ export function AgendarWizard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Schedule Dialog */}
+      <ScheduleDialog
+        open={scheduleDialogOpen}
+        onOpenChange={setScheduleDialogOpen}
+        doctorId={selection.doctorId}
+        specialtyId={selection.specialtyId}
+        doctorName={selectedDoctor?.fullName ?? ""}
+        specialtyName={selectedSpecialtyName}
+        schedules={doctorSchedules.data ?? []}
+        onSelect={handleScheduleSelect}
+      />
     </section>
   )
 }

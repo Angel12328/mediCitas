@@ -12,11 +12,40 @@ export function useBookAppointment(){
   const qc=useQueryClient();
   return useMutation({
     mutationFn: async(body:{scheduleId:string; date:string})=>{
-      const r=await fetch(appUrl("/api/proxy/appointments"),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
-      if(!r.ok){ const b=await r.json().catch(()=>null) as {title?:string;detail?:string}|null; throw new Error(b?.detail??b?.title??`Error ${r.status}`);}
-      return r.json();
+      let attempt = 0;
+      const maxRetries = 3;
+      while (true) {
+        try {
+          const r = await fetch(appUrl("/api/proxy/appointments"), {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          if (!r.ok) {
+            const b = await r.json().catch(() => null) as { title?: string; detail?: string; code?: string } | null;
+            // Retry on concurrent booking conflict
+            if (b?.code === "CONCURRENT_BOOKING" && attempt < 3) {
+              attempt++;
+              await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
+              continue;
+            }
+            throw new Error(b?.detail ?? b?.title ?? `Error ${r.status}`);
+          }
+          return r.json();
+        } catch (e) {
+          if (e instanceof Error && e.message.includes("CONCURRENT_BOOKING") && attempt < 3) {
+            attempt++;
+            await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
+            continue;
+          }
+          throw e;
+        }
+      }
     },
-    onSuccess:()=>{ qc.invalidateQueries({queryKey:["appointments"]}); qc.invalidateQueries({queryKey:["availability"]}); }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      qc.invalidateQueries({ queryKey: ["availability"] });
+    },
   });
 }
 export function useCambiarEstado(){
