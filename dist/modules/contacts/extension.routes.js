@@ -37,7 +37,13 @@ export async function extensionRoutes(app) {
         }
     });
     /** Actualizar extensión (solo ADMIN) */
-    app.patch('/:id', { preHandler: [...adminOnly, validate({ params: extensionIdParamSchema }), validate({ body: updateExtensionSchema })] }, async (request) => {
+    app.patch('/:id', {
+        preHandler: [
+            ...adminOnly,
+            validate({ params: extensionIdParamSchema }),
+            validate({ body: updateExtensionSchema }),
+        ],
+    }, async (request) => {
         const { id } = request.params;
         const updates = request.body;
         const existing = await prisma.extension.findFirst({ where: { id, deletedAt: null } });

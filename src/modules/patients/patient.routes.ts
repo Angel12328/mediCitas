@@ -11,7 +11,16 @@ const patientOnly = [authenticate, requireRoles('PATIENT')];
 
 const updatePatientSchema = z.object({
   bloodType: z
-    .enum(['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', 'O_POSITIVE', 'O_NEGATIVE'])
+    .enum([
+      'A_POSITIVE',
+      'A_NEGATIVE',
+      'B_POSITIVE',
+      'B_NEGATIVE',
+      'AB_POSITIVE',
+      'AB_NEGATIVE',
+      'O_POSITIVE',
+      'O_NEGATIVE',
+    ])
     .optional(),
   allergies: z.string().max(500).nullable().optional(),
 });
@@ -115,7 +124,7 @@ export async function patientProfileRoutes(app: AnyFastifyInstance): Promise<voi
         bloodType: updated.bloodType,
         allergies: updated.allergies,
       };
-    }
+    },
   );
 
   // ==================== CONTACTO DE EMERGENCIA ====================
@@ -141,7 +150,10 @@ export async function patientProfileRoutes(app: AnyFastifyInstance): Promise<voi
     async (request, reply) => {
       const existing = await requirePatientProfile(request.user!.id);
       if (existing.emergencyContactName || existing.emergencyContactNumber) {
-        throw new AppError('CONFLICT', 'Ya existe un contacto de emergencia; use PATCH para modificarlo');
+        throw new AppError(
+          'CONFLICT',
+          'Ya existe un contacto de emergencia; use PATCH para modificarlo',
+        );
       }
 
       const { emergencyContactName, emergencyContactNumber } = request.body as {
@@ -155,7 +167,7 @@ export async function patientProfileRoutes(app: AnyFastifyInstance): Promise<voi
 
       reply.status(201);
       return { name: emergencyContactName, number: emergencyContactNumber };
-    }
+    },
   );
 
   /** Modifica parcialmente el contacto de emergencia existente */
@@ -165,10 +177,16 @@ export async function patientProfileRoutes(app: AnyFastifyInstance): Promise<voi
     async (request) => {
       const existing = await requirePatientProfile(request.user!.id);
       if (!existing.emergencyContactName && !existing.emergencyContactNumber) {
-        throw new AppError('NOT_FOUND', 'No hay contacto de emergencia registrado; créelo con POST');
+        throw new AppError(
+          'NOT_FOUND',
+          'No hay contacto de emergencia registrado; créelo con POST',
+        );
       }
 
-      const updates = request.body as Partial<{ emergencyContactName: string; emergencyContactNumber: string }>;
+      const updates = request.body as Partial<{
+        emergencyContactName: string;
+        emergencyContactNumber: string;
+      }>;
       await prisma.patient.update({ where: { id: existing.id }, data: updates });
 
       const refreshed = await prisma.patient.findUniqueOrThrow({ where: { id: existing.id } });
@@ -176,6 +194,6 @@ export async function patientProfileRoutes(app: AnyFastifyInstance): Promise<voi
         name: refreshed.emergencyContactName,
         number: refreshed.emergencyContactNumber,
       };
-    }
+    },
   );
 }

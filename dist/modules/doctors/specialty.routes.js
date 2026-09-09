@@ -37,7 +37,13 @@ export async function specialtyRoutes(app) {
         }
     });
     /** Actualizar especialidad: renombrar o activar/desactivar (solo ADMIN) */
-    app.patch('/:id', { preHandler: [...adminOnly, validate({ params: specialtyIdParamSchema }), validate({ body: updateSpecialtySchema })] }, async (request) => {
+    app.patch('/:id', {
+        preHandler: [
+            ...adminOnly,
+            validate({ params: specialtyIdParamSchema }),
+            validate({ body: updateSpecialtySchema }),
+        ],
+    }, async (request) => {
         const { id } = request.params;
         const updates = request.body;
         const existing = await prisma.specialty.findFirst({ where: { id, deletedAt: null } });

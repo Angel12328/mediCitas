@@ -22,10 +22,7 @@ export interface TokenPair {
  * Emite un nuevo refresh token para el usuario.
  * @param familyId Familia de rotación; nueva si se omite (login/registro)
  */
-export async function issueRefreshToken(
-  userId: string,
-  familyId?: string
-): Promise<TokenPair> {
+export async function issueRefreshToken(userId: string, familyId?: string): Promise<TokenPair> {
   const raw = generateOpaqueToken();
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
 

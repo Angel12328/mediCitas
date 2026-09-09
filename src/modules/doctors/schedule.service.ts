@@ -35,12 +35,7 @@ export function daysOverlap(maskA: number, maskB: number): boolean {
  * ¿Se cruzan dos rangos horarios HH:mm?
  * Comparación lexicográfica válida por formato zero-padded.
  */
-export function timesOverlap(
-  startA: string,
-  endA: string,
-  startB: string,
-  endB: string
-): boolean {
+export function timesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
   return startA < endB && startB < endA;
 }
 
@@ -59,15 +54,20 @@ export interface ScheduleLike {
  * cruzan y rangos horarios que se superponen.
  * @param excludeScheduleId Horario a excluir (edición)
  */
-export function findConflictingSchedule<
-  T extends ScheduleLike,
->(candidate: Pick<ScheduleLike, 'doctorId' | 'specialtyId' | 'daysBitmask' | 'startTime' | 'endTime'>, existing: T[], excludeScheduleId?: string): T | undefined {
+export function findConflictingSchedule<T extends ScheduleLike>(
+  candidate: Pick<
+    ScheduleLike,
+    'doctorId' | 'specialtyId' | 'daysBitmask' | 'startTime' | 'endTime'
+  >,
+  existing: T[],
+  excludeScheduleId?: string,
+): T | undefined {
   return existing.find(
     (schedule) =>
       schedule.id !== excludeScheduleId &&
       schedule.doctorId === candidate.doctorId &&
       schedule.specialtyId === candidate.specialtyId &&
       daysOverlap(schedule.daysBitmask, candidate.daysBitmask) &&
-      timesOverlap(schedule.startTime, schedule.endTime, candidate.startTime, candidate.endTime)
+      timesOverlap(schedule.startTime, schedule.endTime, candidate.startTime, candidate.endTime),
   );
 }

@@ -3,7 +3,7 @@ import { AppError } from '../../shared/errors/app-error.js';
 import { prisma } from '../../shared/database/client.js';
 import { buildOffsetPage, parseOffsetQuery } from '../../shared/pagination/pagination.js';
 import { availabilityQuerySchema, createScheduleSchema, scheduleIdParamSchema, schedulesQuerySchema, updateScheduleSchema, } from './doctor.schemas.js';
-import { findConflictingSchedule, maskIncludesDay, } from './schedule.service.js';
+import { findConflictingSchedule, maskIncludesDay } from './schedule.service.js';
 import { validate } from '../../shared/validation/validate.js';
 const adminOnly = [authenticate, requireRoles('ADMIN')];
 async function loadDoctorSchedules(doctorId) {
@@ -23,27 +23,90 @@ async function loadDoctorSchedules(doctorId) {
 export async function scheduleRoutes(app) {
     /**
      * Disponibilidad de cupos para doctor/especialidad/fecha.
+     * Soporta dos modos:
+     * - Fecha única: doctorId + specialtyId + date (existente)
+     * - Batch por rango: doctorId + specialtyId + scheduleId + startDate + endDate (nuevo)
      * Excluye horarios completos y citas canceladas liberan cupo.
      * Debe declararse ANTES de la ruta paramétrica /:id.
      */
     app.get('/availability', { preHandler: [authenticate, validate({ query: availabilityQuerySchema })] }, async (request) => {
-        const { doctorId, specialtyId, date } = request.query;
-        const schedules = (await loadDoctorSchedules(doctorId)).filter((s) => s.specialtyId === specialtyId && maskIncludesDay(s.daysBitmask, date));
+        const query = request.query;
+        const { doctorId, specialtyId, date, scheduleId, startDate, endDate } = query;
+        const isBatch = Boolean(scheduleId && startDate && endDate);
+        // Cargar horarios base del doctor
+        const allSchedules = await loadDoctorSchedules(doctorId);
+        const schedules = allSchedules.filter((s) => s.specialtyId === specialtyId);
         if (schedules.length === 0) {
-            return { date, items: [], message: 'Sin horarios disponibles para esa fecha' };
+            if (isBatch) {
+                return { scheduleId: scheduleId, items: [] };
+            }
+            return { date: date, items: [], message: 'Sin horarios disponibles para esa fecha' };
+        }
+        // Modo batch: filtrar por scheduleId específico y rango de fechas
+        if (isBatch) {
+            const targetSchedule = schedules.find((s) => s.id === scheduleId);
+            if (!targetSchedule) {
+                return { scheduleId: scheduleId, items: [] };
+            }
+            // Generar fechas en rango que coincidan con daysBitmask
+            const start = new Date(`${startDate}T00:00:00Z`);
+            const end = new Date(`${endDate}T00:00:00Z`);
+            const dates = [];
+            const current = new Date(start);
+            while (current <= end) {
+                if (maskIncludesDay(targetSchedule.daysBitmask, current.toISOString().slice(0, 10))) {
+                    dates.push(current.toISOString().slice(0, 10));
+                }
+                current.setDate(current.getDate() + 1);
+            }
+            if (dates.length === 0) {
+                return { scheduleId: scheduleId, items: [], daysBitmask: targetSchedule.daysBitmask };
+            }
+            // Consultar booked para todas las fechas en una query
+            const booked = await prisma.appointment.groupBy({
+                by: ['scheduleId', 'date'],
+                where: {
+                    scheduleId: targetSchedule.id,
+                    date: { in: dates.map((d) => new Date(`${d}T00:00:00Z`)) },
+                    deletedAt: null,
+                    status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+                },
+                _count: { _all: true },
+            });
+            const bookedMap = new Map(booked.map((b) => [`${b.scheduleId}-${b.date.toISOString().slice(0, 10)}`, b._count._all]));
+            const items = dates.map((d) => {
+                const bookedCount = bookedMap.get(`${targetSchedule.id}-${d}`) ?? 0;
+                const available = targetSchedule.slotCapacity - bookedCount;
+                return {
+                    date: d,
+                    scheduleId: targetSchedule.id,
+                    startTime: targetSchedule.startTime,
+                    endTime: targetSchedule.endTime,
+                    slotCapacity: targetSchedule.slotCapacity,
+                    booked: bookedCount,
+                    available,
+                };
+            }).filter((slot) => slot.available > 0); // excluir cupos completos
+            return { scheduleId: scheduleId, items, daysBitmask: targetSchedule.daysBitmask };
+        }
+        // Modo fecha única (existente)
+        const singleDate = date;
+        const daySchedules = schedules.filter((s) => maskIncludesDay(s.daysBitmask, singleDate));
+        if (daySchedules.length === 0) {
+            return { date: singleDate, items: [], message: 'Sin horarios disponibles para esa fecha' };
         }
         const booked = await prisma.appointment.groupBy({
             by: ['scheduleId'],
             where: {
-                scheduleId: { in: schedules.map((s) => s.id) },
-                date: new Date(`${date}T00:00:00Z`),
+                scheduleId: { in: daySchedules.map((s) => s.id) },
+                date: new Date(`${singleDate}T00:00:00Z`),
                 deletedAt: null,
                 status: { notIn: ['CANCELLED', 'NO_SHOW'] },
             },
             _count: { _all: true },
         });
         const bookedBySchedule = new Map(booked.map((b) => [b.scheduleId, b._count._all]));
-        const items = schedules
+        const items = daySchedules
             .map((s) => ({
             scheduleId: s.id,
             startTime: s.startTime,
@@ -52,8 +115,8 @@ export async function scheduleRoutes(app) {
             booked: bookedBySchedule.get(s.id) ?? 0,
         }))
             .map((slot) => ({ ...slot, available: slot.slotCapacity - slot.booked }))
-            .filter((slot) => slot.available > 0); // excluir cupos completos
-        return { date, items };
+            .filter((slot) => slot.available > 0);
+        return { date: singleDate, items };
     });
     /** Crear horario recurrente (solo ADMIN) */
     app.post('/', { preHandler: [...adminOnly, validate({ body: createScheduleSchema })] }, async (request, reply) => {
@@ -66,7 +129,12 @@ export async function scheduleRoutes(app) {
             throw new AppError('VALIDATION_ERROR', 'El doctor indicado no existe o no está activo');
         }
         const assignment = await prisma.doctorSpecialty.findFirst({
-            where: { doctorId: data.doctorId, specialtyId: data.specialtyId, status: 'ACTIVE', deletedAt: null },
+            where: {
+                doctorId: data.doctorId,
+                specialtyId: data.specialtyId,
+                status: 'ACTIVE',
+                deletedAt: null,
+            },
         });
         if (!assignment) {
             throw new AppError('VALIDATION_ERROR', 'El doctor no tiene asignada esa especialidad; asígnela primero');
@@ -122,7 +190,13 @@ export async function scheduleRoutes(app) {
         })), total, params);
     });
     /** Modificar horario (solo ADMIN); revalida solapamientos excluyéndose */
-    app.patch('/:id', { preHandler: [...adminOnly, validate({ params: scheduleIdParamSchema }), validate({ body: updateScheduleSchema })] }, async (request) => {
+    app.patch('/:id', {
+        preHandler: [
+            ...adminOnly,
+            validate({ params: scheduleIdParamSchema }),
+            validate({ body: updateScheduleSchema }),
+        ],
+    }, async (request) => {
         const { id } = request.params;
         const updates = request.body;
         const schedule = await prisma.schedule.findFirst({ where: { id, deletedAt: null } });

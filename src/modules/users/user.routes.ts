@@ -73,46 +73,42 @@ export async function userProfileRoutes(app: AnyFastifyInstance): Promise<void> 
   });
 
   /** Actualiza campos permitidos de la persona vinculada al usuario autenticado */
-  app.patch(
-    '/me',
-    { preHandler: validate({ body: updateProfileSchema }) },
-    async (request) => {
-      const userId = request.user!.id;
-      const updates = request.body as Partial<{
-        firstName: string;
-        middleName: string | null;
-        lastName: string;
-        secondLastName: string | null;
-        gender: string;
-        address: string | null;
-      }>;
+  app.patch('/me', { preHandler: validate({ body: updateProfileSchema }) }, async (request) => {
+    const userId = request.user!.id;
+    const updates = request.body as Partial<{
+      firstName: string;
+      middleName: string | null;
+      lastName: string;
+      secondLastName: string | null;
+      gender: string;
+      address: string | null;
+    }>;
 
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { personId: true, deletedAt: true },
-      });
-      if (!user || user.deletedAt) {
-        throw new AppError('NOT_FOUND', 'Usuario no encontrado');
-      }
-
-      await prisma.person.update({
-        where: { id: user.personId },
-        data: updates,
-      });
-
-      const updated = await prisma.person.findUniqueOrThrow({
-        where: { id: user.personId },
-      });
-      return {
-        message: 'Perfil actualizado',
-        person: {
-          firstName: updated.firstName,
-          middleName: updated.middleName,
-          lastName: updated.lastName,
-          secondLastName: updated.secondLastName,
-          address: updated.address,
-        },
-      };
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { personId: true, deletedAt: true },
+    });
+    if (!user || user.deletedAt) {
+      throw new AppError('NOT_FOUND', 'Usuario no encontrado');
     }
-  );
+
+    await prisma.person.update({
+      where: { id: user.personId },
+      data: updates,
+    });
+
+    const updated = await prisma.person.findUniqueOrThrow({
+      where: { id: user.personId },
+    });
+    return {
+      message: 'Perfil actualizado',
+      person: {
+        firstName: updated.firstName,
+        middleName: updated.middleName,
+        lastName: updated.lastName,
+        secondLastName: updated.secondLastName,
+        address: updated.address,
+      },
+    };
+  });
 }

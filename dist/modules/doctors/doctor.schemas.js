@@ -1,8 +1,6 @@
 // Esquemas de validación - doctores, especialidades y horarios - mediCitas API
 import { z } from 'zod';
-export const timeFormat = z
-    .string()
-    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato esperado HH:mm');
+export const timeFormat = z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato esperado HH:mm');
 export const daysBitmaskSchema = z
     .number()
     .int()
@@ -33,6 +31,11 @@ export const doctorSpecialtyParamsSchema = z.object({
 export const doctorsQuerySchema = z.object({
     status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
     specialtyId: z.string().uuid().optional(),
+    // Nuevos parámetros para disponibilidad agregada
+    withAvailability: z.coerce.boolean().optional(),
+    daysAhead: z.coerce.number().int().min(1).max(90).optional().default(30),
+    sort: z.enum(['availability', 'name', 'createdAt']).optional(),
+    filter: z.enum(['hasAvailabilityThisWeek']).optional(),
 });
 export const createScheduleSchema = z
     .object({
@@ -65,7 +68,20 @@ export const scheduleIdParamSchema = z.object({ id: z.string().uuid() });
 export const availabilityQuerySchema = z.object({
     doctorId: z.string().uuid(),
     specialtyId: z.string().uuid(),
-    date: z.string().date('Formato esperado YYYY-MM-DD'),
+    // Modo fecha única (existente)
+    date: z.string().date('Formato esperado YYYY-MM-DD').optional(),
+    // Modo batch por rango (nuevo) - requiere scheduleId + rango
+    scheduleId: z.string().uuid().optional(),
+    startDate: z.string().date('Formato esperado YYYY-MM-DD').optional(),
+    endDate: z.string().date('Formato esperado YYYY-MM-DD').optional(),
+}).refine((data) => {
+    // Validar que se use uno de los dos modos
+    const singleDate = Boolean(data.date);
+    const batchMode = Boolean(data.scheduleId && data.startDate && data.endDate);
+    return singleDate || batchMode;
+}, {
+    message: 'Debe proporcionar "date" (modo fecha única) O "scheduleId + startDate + endDate" (modo batch)',
+    path: ['date'],
 });
 export const schedulesQuerySchema = z.object({
     doctorId: z.string().uuid().optional(),

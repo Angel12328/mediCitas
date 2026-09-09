@@ -18,7 +18,7 @@ function isUniqueViolation(error: unknown): boolean {
  */
 export async function createUserByAdmin(
   input: CreateAdminUserInput,
-  actorId: string
+  actorId: string,
 ): Promise<{
   id: string;
   email: string;
@@ -122,7 +122,7 @@ export async function createUserByAdmin(
 export async function setUserStatus(
   userId: string,
   status: 'ACTIVE' | 'INACTIVE',
-  actorId: string
+  actorId: string,
 ): Promise<{ id: string; status: string }> {
   if (userId === actorId && status === 'INACTIVE') {
     throw new AppError('CONFLICT', 'No puedes desactivar tu propia cuenta');
@@ -133,7 +133,10 @@ export async function setUserStatus(
     throw new AppError('NOT_FOUND', 'Usuario no encontrado');
   }
   if (user.status === status) {
-    throw new AppError('CONFLICT', `La cuenta ya está ${status === 'ACTIVE' ? 'activa' : 'inactiva'}`);
+    throw new AppError(
+      'CONFLICT',
+      `La cuenta ya está ${status === 'ACTIVE' ? 'activa' : 'inactiva'}`,
+    );
   }
 
   const updated = await prisma.user.update({ where: { id: userId }, data: { status } });

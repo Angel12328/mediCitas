@@ -30,7 +30,7 @@ interface PhoneAccess {
 async function authorizePhoneAccess(
   userId: string,
   isAdmin: boolean,
-  phoneId: string
+  phoneId: string,
 ): Promise<PhoneAccess> {
   const phone = await prisma.phone.findFirst({
     where: { id: phoneId, deletedAt: null },
@@ -79,7 +79,7 @@ export async function phoneRoutes(app: AnyFastifyInstance): Promise<void> {
         })),
         total: phones.length,
       };
-    }
+    },
   );
 
   /** Agregar número a una persona (dueño o ADMIN) */
@@ -121,13 +121,19 @@ export async function phoneRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 
   /** Modificar número/extensión (dueño o ADMIN) */
   app.patch(
     '/:id',
-    { preHandler: [authenticate, validate({ params: phoneIdParamSchema }), validate({ body: updatePhoneSchema })] },
+    {
+      preHandler: [
+        authenticate,
+        validate({ params: phoneIdParamSchema }),
+        validate({ body: updatePhoneSchema }),
+      ],
+    },
     async (request) => {
       const user = request.user!;
       const { id } = request.params as { id: string };
@@ -161,7 +167,7 @@ export async function phoneRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 
   /** Eliminar teléfono (soft delete; dueño o ADMIN) */
@@ -177,6 +183,6 @@ export async function phoneRoutes(app: AnyFastifyInstance): Promise<void> {
 
       reply.status(204);
       return null;
-    }
+    },
   );
 }

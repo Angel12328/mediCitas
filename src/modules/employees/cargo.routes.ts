@@ -5,11 +5,7 @@ import { authenticate, requireRoles } from '../../shared/auth/guards.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import { prisma } from '../../shared/database/client.js';
 import { buildOffsetPage, parseOffsetQuery } from '../../shared/pagination/pagination.js';
-import {
-  cargoIdParamSchema,
-  createCargoSchema,
-  updateCargoSchema,
-} from './employee.schemas.js';
+import { cargoIdParamSchema, createCargoSchema, updateCargoSchema } from './employee.schemas.js';
 import { validate } from '../../shared/validation/validate.js';
 
 function isUniqueViolation(error: unknown): boolean {
@@ -23,29 +19,25 @@ function isUniqueViolation(error: unknown): boolean {
 
 export async function cargoRoutes(app: AnyFastifyInstance): Promise<void> {
   /** Catálogo de cargos (autenticado); ?status=ACTIVE filtra activos */
-  app.get(
-    '/',
-    { preHandler: [authenticate] },
-    async (request) => {
-      const params = parseOffsetQuery(request.query as Record<string, unknown>);
-      const query = request.query as { status?: 'ACTIVE' | 'INACTIVE' };
-      const where = {
-        deletedAt: null,
-        ...(query.status ? { status: query.status } : {}),
-      };
+  app.get('/', { preHandler: [authenticate] }, async (request) => {
+    const params = parseOffsetQuery(request.query as Record<string, unknown>);
+    const query = request.query as { status?: 'ACTIVE' | 'INACTIVE' };
+    const where = {
+      deletedAt: null,
+      ...(query.status ? { status: query.status } : {}),
+    };
 
-      const [items, total] = await Promise.all([
-        prisma.cargo.findMany({
-          where,
-          orderBy: { name: 'asc' },
-          skip: params.skip,
-          take: params.take,
-        }),
-        prisma.cargo.count({ where }),
-      ]);
-      return buildOffsetPage(items, total, params);
-    }
-  );
+    const [items, total] = await Promise.all([
+      prisma.cargo.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: params.skip,
+        take: params.take,
+      }),
+      prisma.cargo.count({ where }),
+    ]);
+    return buildOffsetPage(items, total, params);
+  });
 
   /** Crear cargo (solo ADMIN) */
   app.post(
@@ -63,13 +55,20 @@ export async function cargoRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 
   /** Actualizar cargo: renombrar o activar/desactivar (solo ADMIN) */
   app.patch(
     '/:id',
-    { preHandler: [authenticate, requireRoles('ADMIN'), validate({ params: cargoIdParamSchema }), validate({ body: updateCargoSchema })] },
+    {
+      preHandler: [
+        authenticate,
+        requireRoles('ADMIN'),
+        validate({ params: cargoIdParamSchema }),
+        validate({ body: updateCargoSchema }),
+      ],
+    },
     async (request) => {
       const { id } = request.params as { id: string };
       const updates = request.body as Partial<{ name: string; status: 'ACTIVE' | 'INACTIVE' }>;
@@ -87,6 +86,6 @@ export async function cargoRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 }

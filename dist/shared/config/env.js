@@ -14,9 +14,7 @@ export const envSchema = z.object({
         .string()
         .regex(/^\d+[smhd]$/, 'formato esperado: <número><s|m|h|d>')
         .default('7d'),
-    LOG_LEVEL: z
-        .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
-        .default('info'),
+    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 });
 let cached = null;
 /**

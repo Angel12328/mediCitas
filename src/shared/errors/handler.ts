@@ -1,8 +1,4 @@
-import type {
-  FastifyError,
-  FastifyReply,
-  FastifyRequest,
-} from 'fastify';
+import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
 import { AppError, PROBLEM_JSON_MEDIA_TYPE, type ProblemDetails } from './app-error.js';
 import type { AnyFastifyInstance } from '../fastify-types.js';
@@ -42,17 +38,16 @@ function toProblemDetails(error: FastifyError, request: FastifyRequest): Problem
  * personalizados (pino) sin romper la varianza de genéricos.
  */
 export function registerErrorHandler(app: AnyFastifyInstance): void {
-  app.setErrorHandler(
-    (error: FastifyError, request: FastifyRequest, reply: FastifyReply): void => {
-      const problem = toProblemDetails(error, request);
-      reply.status(problem.status).type(PROBLEM_JSON_MEDIA_TYPE).send(problem);
-    }
-  );
+  app.setErrorHandler((error: FastifyError, request: FastifyRequest, reply: FastifyReply): void => {
+    const problem = toProblemDetails(error, request);
+    reply.status(problem.status).type(PROBLEM_JSON_MEDIA_TYPE).send(problem);
+  });
 
   app.setNotFoundHandler((request, reply) => {
-    const problem = new AppError('NOT_FOUND', `Ruta no encontrada: ${request.method} ${request.url}`).toProblemDetails(
-      request.url
-    );
+    const problem = new AppError(
+      'NOT_FOUND',
+      `Ruta no encontrada: ${request.method} ${request.url}`,
+    ).toProblemDetails(request.url);
     reply.status(problem.status).type(PROBLEM_JSON_MEDIA_TYPE).send(problem);
   });
 }

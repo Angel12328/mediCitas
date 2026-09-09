@@ -17,9 +17,7 @@ export const appointmentsQuerySchema = z.object({
     patientId: z.string().uuid().optional(),
     doctorId: z.string().uuid().optional(),
     scheduleId: z.string().uuid().optional(),
-    status: z
-        .enum(['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'])
-        .optional(),
+    status: z.enum(['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
 });
 //# sourceMappingURL=appointment.schemas.js.map
 //# sourceMappingURL=appointment.schemas.js.map

@@ -63,7 +63,7 @@ export async function locationRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 
   // ==================== DEPARTAMENTOS ====================
@@ -87,7 +87,7 @@ export async function locationRoutes(app: AnyFastifyInstance): Promise<void> {
         prisma.department.count({ where }),
       ]);
       return buildOffsetPage(items, total, params);
-    }
+    },
   );
 
   /** Crear departamento bajo un país existente (solo ADMIN) */
@@ -114,7 +114,7 @@ export async function locationRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 
   // ==================== MUNICIPIOS ====================
@@ -137,7 +137,7 @@ export async function locationRoutes(app: AnyFastifyInstance): Promise<void> {
         prisma.municipality.count({ where }),
       ]);
       return buildOffsetPage(items, total, params);
-    }
+    },
   );
 
   /** Detalle de municipio con jerarquía completa (país + departamento) */
@@ -170,7 +170,7 @@ export async function locationRoutes(app: AnyFastifyInstance): Promise<void> {
           name: municipality.department.country.name,
         },
       };
-    }
+    },
   );
 
   /** Crear municipio bajo un departamento existente (solo ADMIN) */
@@ -197,12 +197,12 @@ export async function locationRoutes(app: AnyFastifyInstance): Promise<void> {
         if (isUniqueViolation(error)) {
           throw new AppError(
             'CONFLICT',
-            'Ya existe un municipio con ese nombre en el departamento'
+            'Ya existe un municipio con ese nombre en el departamento',
           );
         }
         throw error;
       }
-    }
+    },
   );
 
   // ==================== JERARQUÍA COMPLETA ====================
@@ -211,37 +211,41 @@ export async function locationRoutes(app: AnyFastifyInstance): Promise<void> {
    * Árbol completo País → Departamento → Municipio.
    * Filtrable por país vía ?countryId=...
    */
-  app.get('/locations/tree', { preHandler: validate({ query: treeQuerySchema }) }, async (request) => {
-    const { countryId } = (request.query ?? {}) as { countryId?: string };
+  app.get(
+    '/locations/tree',
+    { preHandler: validate({ query: treeQuerySchema }) },
+    async (request) => {
+      const { countryId } = (request.query ?? {}) as { countryId?: string };
 
-    const countries = await prisma.country.findMany({
-      where: { deletedAt: null, ...(countryId ? { id: countryId } : {}) },
-      orderBy: { name: 'asc' },
-      include: {
-        departments: {
-          where: { deletedAt: null },
-          orderBy: { name: 'asc' },
-          include: {
-            municipalities: {
-              where: { deletedAt: null },
-              orderBy: { name: 'asc' },
-              select: { id: true, name: true },
+      const countries = await prisma.country.findMany({
+        where: { deletedAt: null, ...(countryId ? { id: countryId } : {}) },
+        orderBy: { name: 'asc' },
+        include: {
+          departments: {
+            where: { deletedAt: null },
+            orderBy: { name: 'asc' },
+            include: {
+              municipalities: {
+                where: { deletedAt: null },
+                orderBy: { name: 'asc' },
+                select: { id: true, name: true },
+              },
             },
           },
         },
-      },
-    });
+      });
 
-    return {
-      countries: countries.map((country) => ({
-        id: country.id,
-        name: country.name,
-        departments: country.departments.map((department) => ({
-          id: department.id,
-          name: department.name,
-          municipalities: department.municipalities.map((m) => ({ id: m.id, name: m.name })),
+      return {
+        countries: countries.map((country) => ({
+          id: country.id,
+          name: country.name,
+          departments: country.departments.map((department) => ({
+            id: department.id,
+            name: department.name,
+            municipalities: department.municipalities.map((m) => ({ id: m.id, name: m.name })),
+          })),
         })),
-      })),
-    };
-  });
+      };
+    },
+  );
 }

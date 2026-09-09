@@ -29,10 +29,7 @@ export interface AuthRoutesOptions {
   authRateLimitMax?: number;
 }
 
-export async function authRoutes(
-  app: AnyFastifyInstance,
-  opts: AuthRoutesOptions
-): Promise<void> {
+export async function authRoutes(app: AnyFastifyInstance, opts: AuthRoutesOptions): Promise<void> {
   const mailer = opts.mailer ?? new ConsoleMailer();
   // Presupuesto propio por ruta (leído por @fastify/rate-limit global)
   const authRateConfig = {
@@ -54,7 +51,7 @@ export async function authRoutes(
         accessToken: result.tokens.accessToken,
         refreshToken: result.tokens.refreshToken,
       };
-    }
+    },
   );
 
   // Login con credenciales
@@ -72,7 +69,7 @@ export async function authRoutes(
         accessToken: result.tokens.accessToken,
         refreshToken: result.tokens.refreshToken,
       };
-    }
+    },
   );
 
   // Rotación de refresh token
@@ -113,7 +110,7 @@ export async function authRoutes(
       await changePassword(userId, currentPassword, newPassword);
       reply.status(204);
       return null;
-    }
+    },
   );
 
   // Solicitud de restablecimiento (público; anti-enumeración)
@@ -127,7 +124,7 @@ export async function authRoutes(
         message:
           'Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña.',
       };
-    }
+    },
   );
 
   // Confirmación de restablecimiento (público)
@@ -139,6 +136,6 @@ export async function authRoutes(
       await resetPassword(token, newPassword);
       reply.status(204);
       return null;
-    }
+    },
   );
 }

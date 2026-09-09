@@ -24,7 +24,9 @@ const APPOINTMENT_INCLUDE = {
                 include: {
                     employee: {
                         include: {
-                            user: { select: { id: true, person: { select: { firstName: true, lastName: true } } } },
+                            user: {
+                                select: { id: true, person: { select: { firstName: true, lastName: true } } },
+                            },
                         },
                     },
                 },
@@ -147,7 +149,13 @@ export async function appointmentRoutes(app) {
         return buildOffsetPage(appointments.map(toDto), total, params);
     });
     /** Transición de estado con matriz de permisos */
-    app.patch('/:id/status', { preHandler: [authenticate, validate({ params: appointmentIdParamSchema }), validate({ body: updateStatusSchema })] }, async (request) => {
+    app.patch('/:id/status', {
+        preHandler: [
+            authenticate,
+            validate({ params: appointmentIdParamSchema }),
+            validate({ body: updateStatusSchema }),
+        ],
+    }, async (request) => {
         const user = request.user;
         const { id } = request.params;
         const { status: nextStatus } = request.body;
@@ -170,7 +178,13 @@ export async function appointmentRoutes(app) {
         return { id: updated.id, status: updated.status, previousStatus: dto.status };
     });
     /** Agregar observación (se concatena preservando notas previas) */
-    app.post('/:id/observations', { preHandler: [authenticate, validate({ params: appointmentIdParamSchema }), validate({ body: addObservationSchema })] }, async (request) => {
+    app.post('/:id/observations', {
+        preHandler: [
+            authenticate,
+            validate({ params: appointmentIdParamSchema }),
+            validate({ body: addObservationSchema }),
+        ],
+    }, async (request) => {
         const user = request.user;
         const { id } = request.params;
         const { observation } = request.body;

@@ -15,7 +15,7 @@ export class ConsoleMailer implements Mailer {
         mail: 'password-reset',
         to,
         previewUrl: '/reset-password?token=<redacted>',
-      })
+      }),
     );
   }
 }

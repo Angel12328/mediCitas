@@ -44,7 +44,7 @@ export function parseOffsetQuery(query: OffsetQuery): OffsetParams {
 export function buildOffsetPage<T>(
   items: T[],
   total: number,
-  params: Pick<OffsetParams, 'page' | 'pageSize'>
+  params: Pick<OffsetParams, 'page' | 'pageSize'>,
 ): OffsetPage<T> {
   const totalPages = Math.max(1, Math.ceil(total / params.pageSize));
   return {
@@ -75,7 +75,9 @@ export function encodeCursor(createdAt: Date | string, id: string): string {
 /** Decodifica un cursor; lanza VALIDATION_ERROR si es inválido. */
 export function decodeCursor(cursor: string): CursorPayload {
   try {
-    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as Partial<CursorPayload>;
+    const parsed = JSON.parse(
+      Buffer.from(cursor, 'base64url').toString('utf8'),
+    ) as Partial<CursorPayload>;
     if (typeof parsed.createdAt !== 'string' || typeof parsed.id !== 'string') {
       throw new Error('estructura inválida');
     }

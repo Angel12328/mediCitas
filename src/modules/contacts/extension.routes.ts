@@ -50,13 +50,19 @@ export async function extensionRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 
   /** Actualizar extensión (solo ADMIN) */
   app.patch(
     '/:id',
-    { preHandler: [...adminOnly, validate({ params: extensionIdParamSchema }), validate({ body: updateExtensionSchema })] },
+    {
+      preHandler: [
+        ...adminOnly,
+        validate({ params: extensionIdParamSchema }),
+        validate({ body: updateExtensionSchema }),
+      ],
+    },
     async (request) => {
       const { id } = request.params as { id: string };
       const updates = request.body as Partial<{ name: string; status: 'ACTIVE' | 'INACTIVE' }>;
@@ -78,6 +84,6 @@ export async function extensionRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 }

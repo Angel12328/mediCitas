@@ -84,7 +84,13 @@ export async function phoneRoutes(app) {
         }
     });
     /** Modificar número/extensión (dueño o ADMIN) */
-    app.patch('/:id', { preHandler: [authenticate, validate({ params: phoneIdParamSchema }), validate({ body: updatePhoneSchema })] }, async (request) => {
+    app.patch('/:id', {
+        preHandler: [
+            authenticate,
+            validate({ params: phoneIdParamSchema }),
+            validate({ body: updatePhoneSchema }),
+        ],
+    }, async (request) => {
         const user = request.user;
         const { id } = request.params;
         const updates = request.body;

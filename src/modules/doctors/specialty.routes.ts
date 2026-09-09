@@ -50,13 +50,19 @@ export async function specialtyRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 
   /** Actualizar especialidad: renombrar o activar/desactivar (solo ADMIN) */
   app.patch(
     '/:id',
-    { preHandler: [...adminOnly, validate({ params: specialtyIdParamSchema }), validate({ body: updateSpecialtySchema })] },
+    {
+      preHandler: [
+        ...adminOnly,
+        validate({ params: specialtyIdParamSchema }),
+        validate({ body: updateSpecialtySchema }),
+      ],
+    },
     async (request) => {
       const { id } = request.params as { id: string };
       const updates = request.body as Partial<{ name: string; status: 'ACTIVE' | 'INACTIVE' }>;
@@ -78,6 +84,6 @@ export async function specialtyRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 }

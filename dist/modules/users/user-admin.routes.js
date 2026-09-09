@@ -3,7 +3,7 @@ import { AppError } from '../../shared/errors/app-error.js';
 import { prisma } from '../../shared/database/client.js';
 import { buildOffsetPage, parseOffsetQuery } from '../../shared/pagination/pagination.js';
 import { assignRoleSchema, createAdminUserSchema, createRoleSchema, updateRoleSchema, updateUserStatusSchema, userIdParamSchema, userListQuerySchema, userRoleParamsSchema, } from './user.schemas.js';
-import { createUserByAdmin, setUserStatus, } from './user-admin.service.js';
+import { createUserByAdmin, setUserStatus } from './user-admin.service.js';
 import { validate } from '../../shared/validation/validate.js';
 const adminOnly = [authenticate, requireRoles('ADMIN')];
 function isUniqueViolation(error) {
@@ -120,14 +120,26 @@ export async function userAdminRoutes(app) {
         return created;
     });
     /** Activar/desactivar cuenta de usuario (solo ADMIN) */
-    app.patch('/users/:id/status', { preHandler: [...adminOnly, validate({ params: userIdParamSchema }), validate({ body: updateUserStatusSchema })] }, async (request) => {
+    app.patch('/users/:id/status', {
+        preHandler: [
+            ...adminOnly,
+            validate({ params: userIdParamSchema }),
+            validate({ body: updateUserStatusSchema }),
+        ],
+    }, async (request) => {
         const { id } = request.params;
         const { status } = request.body;
         return setUserStatus(id, status, request.user.id);
     });
     // ==================== ASIGNACIÓN USUARIO-ROL ====================
     /** Asignar rol a usuario; reactiva si estaba inactivo (solo ADMIN) */
-    app.post('/users/:id/roles', { preHandler: [...adminOnly, validate({ params: userIdParamSchema }), validate({ body: assignRoleSchema })] }, async (request, reply) => {
+    app.post('/users/:id/roles', {
+        preHandler: [
+            ...adminOnly,
+            validate({ params: userIdParamSchema }),
+            validate({ body: assignRoleSchema }),
+        ],
+    }, async (request, reply) => {
         const { id: userId } = request.params;
         const { roleId } = request.body;
         await requireActiveUser(userId);

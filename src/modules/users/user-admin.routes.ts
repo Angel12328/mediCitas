@@ -15,10 +15,7 @@ import {
   userListQuerySchema,
   userRoleParamsSchema,
 } from './user.schemas.js';
-import {
-  createUserByAdmin,
-  setUserStatus,
-} from './user-admin.service.js';
+import { createUserByAdmin, setUserStatus } from './user-admin.service.js';
 import { validate } from '../../shared/validation/validate.js';
 
 const adminOnly = [authenticate, requireRoles('ADMIN')];
@@ -68,7 +65,7 @@ export async function userAdminRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 
   /** Actualizar rol: renombrar, describir, activar/desactivar (solo ADMIN) */
@@ -100,7 +97,7 @@ export async function userAdminRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 
   // ==================== USUARIOS ====================
@@ -111,7 +108,11 @@ export async function userAdminRoutes(app: AnyFastifyInstance): Promise<void> {
     { preHandler: [...adminOnly, validate({ query: userListQuerySchema })] },
     async (request) => {
       const params = parseOffsetQuery(request.query as Record<string, unknown>);
-      const filters = request.query as { email?: string; status?: 'ACTIVE' | 'INACTIVE'; role?: string };
+      const filters = request.query as {
+        email?: string;
+        status?: 'ACTIVE' | 'INACTIVE';
+        role?: string;
+      };
 
       const where = {
         deletedAt: null,
@@ -156,7 +157,7 @@ export async function userAdminRoutes(app: AnyFastifyInstance): Promise<void> {
         roles: u.roles.map((r) => r.role.name),
       }));
       return buildOffsetPage(items, total, params);
-    }
+    },
   );
 
   /** Alta manual de cuenta con roles (solo ADMIN) */
@@ -166,22 +167,28 @@ export async function userAdminRoutes(app: AnyFastifyInstance): Promise<void> {
     async (request, reply) => {
       const created = await createUserByAdmin(
         request.body as Parameters<typeof createUserByAdmin>[0],
-        request.user!.id
+        request.user!.id,
       );
       reply.status(201);
       return created;
-    }
+    },
   );
 
   /** Activar/desactivar cuenta de usuario (solo ADMIN) */
   app.patch(
     '/users/:id/status',
-    { preHandler: [...adminOnly, validate({ params: userIdParamSchema }), validate({ body: updateUserStatusSchema })] },
+    {
+      preHandler: [
+        ...adminOnly,
+        validate({ params: userIdParamSchema }),
+        validate({ body: updateUserStatusSchema }),
+      ],
+    },
     async (request) => {
       const { id } = request.params as { id: string };
       const { status } = request.body as { status: 'ACTIVE' | 'INACTIVE' };
       return setUserStatus(id, status, request.user!.id);
-    }
+    },
   );
 
   // ==================== ASIGNACIÓN USUARIO-ROL ====================
@@ -189,7 +196,13 @@ export async function userAdminRoutes(app: AnyFastifyInstance): Promise<void> {
   /** Asignar rol a usuario; reactiva si estaba inactivo (solo ADMIN) */
   app.post(
     '/users/:id/roles',
-    { preHandler: [...adminOnly, validate({ params: userIdParamSchema }), validate({ body: assignRoleSchema })] },
+    {
+      preHandler: [
+        ...adminOnly,
+        validate({ params: userIdParamSchema }),
+        validate({ body: assignRoleSchema }),
+      ],
+    },
     async (request, reply) => {
       const { id: userId } = request.params as { id: string };
       const { roleId } = request.body as { roleId: string };
@@ -223,7 +236,7 @@ export async function userAdminRoutes(app: AnyFastifyInstance): Promise<void> {
         status: assignment.status,
         roleName: role.name,
       };
-    }
+    },
   );
 
   /** Desactivar rol de usuario (la asociación queda INACTIVA, no se borra) */
@@ -248,6 +261,6 @@ export async function userAdminRoutes(app: AnyFastifyInstance): Promise<void> {
 
       reply.status(204);
       return null;
-    }
+    },
   );
 }

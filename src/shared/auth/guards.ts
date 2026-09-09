@@ -8,10 +8,7 @@ import type { AuthenticatedUser, RoleName } from './types.js';
  * Hook preValidation que autentica vía Bearer JWT.
  * Adjunta request.user = { id, roles } desde el payload del token.
  */
-export async function authenticate(
-  request: FastifyRequest,
-  _reply: FastifyReply
-): Promise<void> {
+export async function authenticate(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
   const authHeader = request.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     throw new AppError('UNAUTHORIZED', 'Se requiere token de acceso (Bearer)');

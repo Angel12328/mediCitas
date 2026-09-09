@@ -168,7 +168,10 @@ export async function registerUser(input: RegisterInput): Promise<{
  * de usuarios (mismo mensaje y estado ante correo inexistente o
  * contraseña incorrecta).
  */
-export async function loginUser(email: string, password: string): Promise<{
+export async function loginUser(
+  email: string,
+  password: string,
+): Promise<{
   user: { id: string; email: string; roles: string[] };
   tokens: AuthTokens;
 }> {
@@ -200,10 +203,7 @@ export async function loginUser(email: string, password: string): Promise<{
  * Solicitud de restablecimiento: siempre responde sin revelar si el
  * correo existe (anti-enumeración). Crea token de un uso y "envía" correo.
  */
-export async function requestPasswordReset(
-  email: string,
-  mailer: Mailer
-): Promise<void> {
+export async function requestPasswordReset(email: string, mailer: Mailer): Promise<void> {
   const normalized = email.trim().toLowerCase();
   const user = await prisma.user.findFirst({
     where: { email: normalized, deletedAt: null },
@@ -262,7 +262,7 @@ export async function resetPassword(rawToken: string, newPassword: string): Prom
 export async function changePassword(
   userId: string,
   currentPassword: string,
-  newPassword: string
+  newPassword: string,
 ): Promise<void> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new AppError('NOT_FOUND', 'Usuario no encontrado');

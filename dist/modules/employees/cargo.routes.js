@@ -2,7 +2,7 @@ import { authenticate, requireRoles } from '../../shared/auth/guards.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import { prisma } from '../../shared/database/client.js';
 import { buildOffsetPage, parseOffsetQuery } from '../../shared/pagination/pagination.js';
-import { cargoIdParamSchema, createCargoSchema, updateCargoSchema, } from './employee.schemas.js';
+import { cargoIdParamSchema, createCargoSchema, updateCargoSchema } from './employee.schemas.js';
 import { validate } from '../../shared/validation/validate.js';
 function isUniqueViolation(error) {
     return (typeof error === 'object' &&
@@ -46,7 +46,14 @@ export async function cargoRoutes(app) {
         }
     });
     /** Actualizar cargo: renombrar o activar/desactivar (solo ADMIN) */
-    app.patch('/:id', { preHandler: [authenticate, requireRoles('ADMIN'), validate({ params: cargoIdParamSchema }), validate({ body: updateCargoSchema })] }, async (request) => {
+    app.patch('/:id', {
+        preHandler: [
+            authenticate,
+            requireRoles('ADMIN'),
+            validate({ params: cargoIdParamSchema }),
+            validate({ body: updateCargoSchema }),
+        ],
+    }, async (request) => {
         const { id } = request.params;
         const updates = request.body;
         const existing = await prisma.cargo.findFirst({ where: { id, deletedAt: null } });

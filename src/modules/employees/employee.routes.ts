@@ -81,7 +81,7 @@ export async function employeeRoutes(app: AnyFastifyInstance): Promise<void> {
         }
         throw error;
       }
-    }
+    },
   );
 
   /** Listado de empleados con filtros estado/rol (solo ADMIN) */
@@ -146,13 +146,19 @@ export async function employeeRoutes(app: AnyFastifyInstance): Promise<void> {
         status: e.status,
       }));
       return buildOffsetPage(items, total, params);
-    }
+    },
   );
 
   /** Activar/desactivar empleado (solo ADMIN) */
   app.patch(
     '/:id',
-    { preHandler: [...adminOnly, validate({ params: employeeIdParamSchema }), validate({ body: updateEmployeeSchema })] },
+    {
+      preHandler: [
+        ...adminOnly,
+        validate({ params: employeeIdParamSchema }),
+        validate({ body: updateEmployeeSchema }),
+      ],
+    },
     async (request) => {
       const { id } = request.params as { id: string };
       await requireEmployee(id);
@@ -163,7 +169,7 @@ export async function employeeRoutes(app: AnyFastifyInstance): Promise<void> {
         data: { status },
       });
       return { id: updated.id, status: updated.status };
-    }
+    },
   );
 
   // ==================== ASIGNACIÓN EMPLEADO-CARGO ====================
@@ -174,7 +180,13 @@ export async function employeeRoutes(app: AnyFastifyInstance): Promise<void> {
    */
   app.post(
     '/:id/cargos',
-    { preHandler: [...adminOnly, validate({ params: employeeIdParamSchema }), validate({ body: assignCargoSchema })] },
+    {
+      preHandler: [
+        ...adminOnly,
+        validate({ params: employeeIdParamSchema }),
+        validate({ body: assignCargoSchema }),
+      ],
+    },
     async (request, reply) => {
       const { id: employeeId } = request.params as { id: string };
       await requireEmployee(employeeId);
@@ -208,7 +220,7 @@ export async function employeeRoutes(app: AnyFastifyInstance): Promise<void> {
         cargoName: assignment.cargo.name,
         assignedAt: assignment.assignedAt,
       };
-    }
+    },
   );
 
   /** Historial completo de cargos del empleado (más reciente primero) */
@@ -232,6 +244,6 @@ export async function employeeRoutes(app: AnyFastifyInstance): Promise<void> {
         })),
         total: history.length,
       };
-    }
+    },
   );
 }

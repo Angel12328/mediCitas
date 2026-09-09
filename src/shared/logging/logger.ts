@@ -9,7 +9,9 @@ export interface LoggerOptions {
   stream?: pino.DestinationStream;
 }
 
-export function resolveLogLevel(source: Record<string, string | undefined> = process.env): LogLevel {
+export function resolveLogLevel(
+  source: Record<string, string | undefined> = process.env,
+): LogLevel {
   const candidate = source['LOG_LEVEL'];
   return LOG_LEVELS.includes(candidate as LogLevel) ? (candidate as LogLevel) : 'info';
 }

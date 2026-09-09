@@ -6,7 +6,16 @@ import { validate } from '../../shared/validation/validate.js';
 const patientOnly = [authenticate, requireRoles('PATIENT')];
 const updatePatientSchema = z.object({
     bloodType: z
-        .enum(['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', 'O_POSITIVE', 'O_NEGATIVE'])
+        .enum([
+        'A_POSITIVE',
+        'A_NEGATIVE',
+        'B_POSITIVE',
+        'B_NEGATIVE',
+        'AB_POSITIVE',
+        'AB_NEGATIVE',
+        'O_POSITIVE',
+        'O_NEGATIVE',
+    ])
         .optional(),
     allergies: z.string().max(500).nullable().optional(),
 });

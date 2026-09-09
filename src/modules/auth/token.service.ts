@@ -24,7 +24,7 @@ function requireEnvSecret(kind: 'JWT_ACCESS_SECRET'): string {
 
 export function signAccessToken(
   payload: { sub: string; roles: string[] },
-  expiresIn?: string
+  expiresIn?: string,
 ): string {
   const env = getEnv();
   const options: SignOptions = {

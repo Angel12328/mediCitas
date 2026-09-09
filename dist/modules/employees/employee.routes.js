@@ -117,7 +117,13 @@ export async function employeeRoutes(app) {
         return buildOffsetPage(items, total, params);
     });
     /** Activar/desactivar empleado (solo ADMIN) */
-    app.patch('/:id', { preHandler: [...adminOnly, validate({ params: employeeIdParamSchema }), validate({ body: updateEmployeeSchema })] }, async (request) => {
+    app.patch('/:id', {
+        preHandler: [
+            ...adminOnly,
+            validate({ params: employeeIdParamSchema }),
+            validate({ body: updateEmployeeSchema }),
+        ],
+    }, async (request) => {
         const { id } = request.params;
         await requireEmployee(id);
         const { status } = request.body;
@@ -132,7 +138,13 @@ export async function employeeRoutes(app) {
      * Asignar cargo a empleado. El historial se preserva: cada cambio
      * crea una nueva fila con timestamp; reasignar el cargo actual → CONFLICT.
      */
-    app.post('/:id/cargos', { preHandler: [...adminOnly, validate({ params: employeeIdParamSchema }), validate({ body: assignCargoSchema })] }, async (request, reply) => {
+    app.post('/:id/cargos', {
+        preHandler: [
+            ...adminOnly,
+            validate({ params: employeeIdParamSchema }),
+            validate({ body: assignCargoSchema }),
+        ],
+    }, async (request, reply) => {
         const { id: employeeId } = request.params;
         await requireEmployee(employeeId);
         const { cargoId } = request.body;
