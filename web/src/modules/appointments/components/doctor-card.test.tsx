@@ -14,29 +14,6 @@ const baseDoctor: DoctorItem = {
   status: "ACTIVE",
 }
 
-const schedules: ScheduleItem[] = [
-  {
-    id: "sched-1",
-    doctorName: "Dr. Test",
-    specialtyName: "Cardiología",
-    daysBitmask: 62, // Lun-Vie (bits 1-5)
-    startTime: "08:00",
-    endTime: "12:00",
-    slotCapacity: 10,
-    status: "ACTIVE",
-  },
-  {
-    id: "sched-2",
-    doctorName: "Dr. Test",
-    specialtyName: "Cardiología",
-    daysBitmask: 32, // Sáb (bit 5)
-    startTime: "09:00",
-    endTime: "13:00",
-    slotCapacity: 8,
-    status: "ACTIVE",
-  },
-]
-
 const availabilitySummary = {
   hasAvailabilityThisWeek: true,
   hasAvailabilityThisMonth: true,
@@ -46,13 +23,21 @@ const availabilitySummary = {
   totalAvailableThisMonth: 80,
 }
 
+const noAvailabilitySummary = {
+  hasAvailabilityThisWeek: false,
+  hasAvailabilityThisMonth: false,
+  nextAvailableDate: null,
+  nextSlot: null,
+  totalSlotsThisMonth: 0,
+  totalAvailableThisMonth: 0,
+}
+
 describe("DoctorCard", () => {
   it("renders doctor name and specialty", () => {
     render(
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        schedules={schedules}
         availabilitySummary={availabilitySummary}
         selected={false}
         disabled={false}
@@ -64,12 +49,11 @@ describe("DoctorCard", () => {
     expect(screen.getByText("Cardiología")).toBeInTheDocument()
   })
 
-  it("shows schedule summary and next available slot", () => {
+  it("shows next slot time and available cups", () => {
     render(
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        schedules={schedules}
         availabilitySummary={availabilitySummary}
         selected={false}
         disabled={false}
@@ -78,10 +62,9 @@ describe("DoctorCard", () => {
       />
     )
     const card = screen.getByTestId("doctor-card-doc-1")
-    expect(within(card).getByText(/Lun–Vie/)).toBeInTheDocument()
+    expect(within(card).getByText(/Próximo:/)).toBeInTheDocument()
     expect(within(card).getByText(/08:00/)).toBeInTheDocument()
     expect(within(card).getByText(/cupos próximo/)).toBeInTheDocument()
-    expect(within(card).getByText("8/10")).toBeInTheDocument()
   })
 
   it("shows 'Sin disponibilidad' when no availabilitySummary", () => {
@@ -89,7 +72,6 @@ describe("DoctorCard", () => {
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        schedules={schedules}
         availabilitySummary={undefined}
         selected={false}
         disabled={false}
@@ -106,7 +88,6 @@ describe("DoctorCard", () => {
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        schedules={schedules}
         availabilitySummary={availabilitySummary}
         selected={false}
         disabled={false}
@@ -125,7 +106,6 @@ describe("DoctorCard", () => {
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        schedules={schedules}
         availabilitySummary={availabilitySummary}
         selected={false}
         disabled={false}
@@ -142,15 +122,7 @@ describe("DoctorCard", () => {
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        schedules={schedules}
-        availabilitySummary={{
-          hasAvailabilityThisWeek: false,
-          hasAvailabilityThisMonth: false,
-          nextAvailableDate: null,
-          nextSlot: null,
-          totalSlotsThisMonth: 0,
-          totalAvailableThisMonth: 0,
-        }}
+        availabilitySummary={noAvailabilitySummary}
         selected={false}
         disabled={false}
         onSelect={vi.fn()}
@@ -167,7 +139,6 @@ describe("DoctorCard", () => {
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        schedules={schedules}
         availabilitySummary={availabilitySummary}
         selected={true}
         disabled={false}
@@ -184,7 +155,6 @@ describe("DoctorCard", () => {
       <DoctorCard
         doctor={baseDoctor}
         specialtyName="Cardiología"
-        schedules={schedules}
         availabilitySummary={availabilitySummary}
         selected={false}
         disabled={false}

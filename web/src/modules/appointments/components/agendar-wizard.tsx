@@ -227,7 +227,6 @@ export function AgendarWizard() {
                     key={doctor.id}
                     doctor={doctor}
                     specialtyName={selectedSpecialtyName}
-                    schedules={doctorSchedules.data?.filter(s => s.doctorName.includes(doctor.fullName.split(" ")[1])) ?? []}
                     availabilitySummary={doctor.availabilitySummary}
                     selected={doctor.id === selection.doctorId}
                     disabled={!doctor.availabilitySummary?.hasAvailabilityThisMonth}
