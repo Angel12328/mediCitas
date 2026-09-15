@@ -15,7 +15,6 @@ interface ScheduleDialogProps {
   doctorName: string;
   specialtyName: string;
   schedules: ScheduleItem[];
-  onSelect: (scheduleId: string, date: string) => void;
   onConfirm: (scheduleId: string, date: string) => void;
 }
 
@@ -27,7 +26,6 @@ export function ScheduleDialog({
   doctorName,
   specialtyName,
   schedules,
-  onSelect,
   onConfirm,
 }: ScheduleDialogProps) {
   const [view, setView] = useState<"weekly" | "datePicker">("weekly");
@@ -36,14 +34,6 @@ export function ScheduleDialog({
   const handleScheduleSelect = (schedule: ScheduleItem) => {
     setSelectedSchedule(schedule);
     setView("datePicker");
-  };
-
-  const handleDateSelect = (date: string, available: number) => {
-    if (!selectedSchedule) return;
-    onConfirm(selectedSchedule.id, date);
-    onOpenChange(false);
-    setView("weekly");
-    setSelectedSchedule(null);
   };
 
   const handleConfirmFromPicker = (date: string) => {
@@ -98,7 +88,6 @@ return (
                 endTime: selectedSchedule.endTime,
                 slotCapacity: selectedSchedule.slotCapacity,
               }}
-              onSelect={handleDateSelect}
               onBack={handleBack}
               onConfirm={handleConfirmFromPicker}
             />

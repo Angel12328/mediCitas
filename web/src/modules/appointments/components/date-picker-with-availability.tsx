@@ -11,7 +11,6 @@ interface DatePickerWithAvailabilityProps {
   specialtyId: string;
   doctorId: string;
   schedule: { startTime: string; endTime: string; slotCapacity: number };
-  onSelect: (date: string, available: number) => void;
   onBack: () => void;
   onConfirm: (date: string) => void;
 }
@@ -27,7 +26,6 @@ export function DatePickerWithAvailability({
   specialtyId,
   doctorId,
   schedule,
-  onSelect,
   onBack,
   onConfirm,
 }: DatePickerWithAvailabilityProps) {
@@ -110,7 +108,6 @@ export function DatePickerWithAvailability({
     const item = getAvailabilityForDate(dateStr);
     if (!item || item.available === 0) return;
     setSelectedDate(dateStr);
-    onSelect(dateStr, item.available);
   };
 
   const prevMonth = () => setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));

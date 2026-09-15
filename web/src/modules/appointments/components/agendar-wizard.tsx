@@ -317,7 +317,6 @@ export function AgendarWizard() {
         doctorName={selectedDoctor?.fullName ?? ""}
         specialtyName={selectedSpecialtyName}
         schedules={doctorSchedules.data ?? []}
-        onSelect={handleScheduleSelect}
         onConfirm={handleScheduleSelect}
       />
     </section>
