@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { BatchAvailabilityItem, BatchAvailabilityResponse } from "@/modules/schedules/queries";
 import { useScheduleAvailability } from "@/modules/schedules/queries";
@@ -13,6 +13,7 @@ interface DatePickerWithAvailabilityProps {
   schedule: { startTime: string; endTime: string; slotCapacity: number };
   onSelect: (date: string, available: number) => void;
   onBack: () => void;
+  onConfirm: (date: string) => void;
 }
 
 const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"] as const;
@@ -28,6 +29,7 @@ export function DatePickerWithAvailability({
   schedule,
   onSelect,
   onBack,
+  onConfirm,
 }: DatePickerWithAvailabilityProps) {
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -236,6 +238,17 @@ export function DatePickerWithAvailability({
               </div>
             </div>
           </CardContent>
+          <CardFooter className="flex justify-between border-t pt-4">
+            <Button variant="outline" onClick={onBack}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => selectedDate && onConfirm(selectedDate)}
+              disabled={!selectedDate}
+            >
+              Revisar y Confirmar
+            </Button>
+          </CardFooter>
         </Card>
       )}
     </div>

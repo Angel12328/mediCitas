@@ -125,6 +125,7 @@ export function AgendarWizard() {
   const handleScheduleSelect = useCallback((scheduleId: string, date: string) => {
     setSelection((s) => ({ ...s, scheduleId, date }))
     setScheduleDialogOpen(false)
+    setStep("confirm")
   }, [])
 
   const handleContinue = useCallback(() => {
@@ -238,16 +239,7 @@ export function AgendarWizard() {
             </div>
           )}
 
-          {/* Continue Button */}
-          <div className="flex justify-end">
-            <Button
-              onClick={handleContinue}
-              disabled={!canContinue}
-              data-testid="btn-continuar"
-            >
-              Revisar y confirmar
-            </Button>
-          </div>
+          
         </div>
       )}
 
@@ -326,6 +318,7 @@ export function AgendarWizard() {
         specialtyName={selectedSpecialtyName}
         schedules={doctorSchedules.data ?? []}
         onSelect={handleScheduleSelect}
+        onConfirm={handleScheduleSelect}
       />
     </section>
   )
