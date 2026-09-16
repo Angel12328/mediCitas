@@ -158,6 +158,12 @@ export function DatePickerWithAvailability({
               const past = isPastDate(dateStr);
               const selected = selectedDate === dateStr;
 
+              // Parse dateStr as LOCAL time to get correct day of week
+              const [year, month, day] = dateStr.split('-').map(Number);
+              const localDate = new Date(year, month - 1, day);
+              const dayOfWeek = localDate.getDay();
+              const dayNumber = localDate.getDate();
+
               return (
                 <button
                   key={dateStr}
@@ -172,9 +178,9 @@ export function DatePickerWithAvailability({
                     available && !past && "bg-green-100 text-green-900 hover:bg-green-200 cursor-pointer",
                     selected && "ring-2 ring-primary ring-offset-2",
                   )}
-                  aria-label={`${DIAS[new Date(dateStr).getDay()]} ${dateStr}${available ? `, ${availability?.items?.find(i => i.date === dateStr)?.available} cupos` : ", sin cupos"}`}
+                  aria-label={`${DIAS[dayOfWeek]} ${dateStr}${available ? `, ${availability?.items?.find(i => i.date === dateStr)?.available} cupos` : ", sin cupos"}`}
                 >
-                  {new Date(dateStr).getDate()}
+                  {dayNumber}
                 </button>
               );
             })}
@@ -196,6 +202,11 @@ export function DatePickerWithAvailability({
                   .map((item) => {
                     const available = item.available > 0;
                     const selected = selectedDate === item.date;
+                    // Parse date as LOCAL time for correct day of week
+                    const [year, month, day] = item.date.split('-').map(Number);
+                    const localDate = new Date(year, month - 1, day);
+                    const dayOfWeek = localDate.getDay();
+                    const dayNumber = localDate.getDate();
                     return (
                       <button
                         key={item.date}
@@ -215,7 +226,7 @@ export function DatePickerWithAvailability({
                           </span>
                           <div>
                             <p className="font-medium">
-                              {DIAS[new Date(item.date).getDay()]} {new Date(item.date).getDate()} de {MESES[new Date(item.date).getMonth()]}
+                              {DIAS[dayOfWeek]} {dayNumber} de {MESES[localDate.getMonth()]}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {item.startTime.slice(0, 5)}–{item.endTime.slice(0, 5)} · {item.available} cupos de {item.slotCapacity}

@@ -31,7 +31,12 @@ function isRetryableConflict(error) {
  * Reintenta hasta MAX_RETRIES ante conflicto de concurrencia.
  */
 export async function bookAppointment(input) {
-    const appointmentDate = new Date(`${input.date}T00:00:00Z`);
+    // Parse date as LOCAL midnight to avoid timezone shift (UTC vs local)
+    const parts = input.date.split('-');
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+    const appointmentDate = new Date(year, month - 1, day);
     const now = new Date();
     // Validación anticipada: ventana de antelación
     const hoursUntil = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);

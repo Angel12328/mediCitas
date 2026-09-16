@@ -13,9 +13,13 @@ export const DAY_BITS = {
 export function dayBitFromJsDay(jsDay) {
     return 1 << ((jsDay + 6) % 7);
 }
-/** Bitmask del día para una fecha 'YYYY-MM-DD' (interpretada en UTC). */
+/** Bitmask del día para una fecha 'YYYY-MM-DD' (interpretada en LOCAL). */
 export function dayBitForDate(isoDate) {
-    const jsDay = new Date(`${isoDate}T00:00:00Z`).getUTCDay();
+    const parts = isoDate.split('-');
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+    const jsDay = new Date(year, month - 1, day).getDay();
     return dayBitFromJsDay(jsDay);
 }
 export function maskIncludesDay(mask, isoDate) {
