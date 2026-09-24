@@ -6,6 +6,7 @@ COPY prisma ./prisma
 RUN npx prisma generate
 COPY . .
 RUN npm run build
+RUN cp -r src/generated/prisma dist/generated/prisma 2>/dev/null || true
 EXPOSE 3000
 USER node
 CMD ["node", "dist/main.js"]
