@@ -1,5 +1,5 @@
 // Servicio de administración de usuarios - mediCitas API
-import { Prisma } from '../../generated/prisma/client.js';
+import { Prisma } from '../../generated/prisma/client.ts';
 import { prisma } from '../../shared/database/client.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import { hashPassword } from '../auth/password.service.js';

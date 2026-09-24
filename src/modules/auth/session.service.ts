@@ -1,6 +1,6 @@
 // Servicio de sesiones: refresh tokens con rotación y detección de reuso
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import type { User } from '../../generated/prisma/client.js';
+import type { User } from '../../generated/prisma/client.ts';
 import { prisma } from '../../shared/database/client.js';
 import { AppError } from '../../shared/errors/app-error.js';
 

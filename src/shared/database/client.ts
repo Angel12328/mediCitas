@@ -1,5 +1,5 @@
 // Cliente Prisma singleton - mediCitas API
-import { PrismaClient } from '../../generated/prisma/client.js';
+import { PrismaClient } from '../../generated/prisma/client.ts';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const globalForPrisma = globalThis as unknown as { __medicitasPrisma?: PrismaClient };

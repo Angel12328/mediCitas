@@ -1,7 +1,7 @@
 // Lógica de negocio de autenticación - mediCitas API
 import { randomBytes } from 'node:crypto';
 import { createHash } from 'node:crypto';
-import type { User } from '../../generated/prisma/client.js';
+import type { User } from '../../generated/prisma/client.ts';
 import { prisma } from '../../shared/database/client.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import type { Mailer } from '../../shared/mail/mailer.js';
