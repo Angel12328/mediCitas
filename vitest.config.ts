@@ -7,8 +7,11 @@ export default defineConfig({
     setupFiles: ['tests/setup.ts'],
     testTimeout: 15000,
     hookTimeout: 15000,
-    // Los archivos comparten la misma base de datos: ejecutarlos en serie
-    // evita que la limpieza de uno interfiera con otro.
     fileParallelism: false,
+  },
+  resolve: {
+    alias: {
+      '@prisma/client': '/home/angel/Documentos/portafolioDev/mediCitas-proyect/node_modules/@prisma/client',
+    },
   },
 });
