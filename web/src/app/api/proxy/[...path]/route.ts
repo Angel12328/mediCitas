@@ -30,7 +30,7 @@ async function forward(request: Request, ctx: Ctx): Promise<NextResponse> {
   } catch (err) {
     if (err instanceof ApiError) {
       return NextResponse.json(
-        { code: err.code, title: err.message, status: err.status },
+        { code: err.code, title: err.title, detail: err.specificMessage, status: err.status },
         { status: err.status }
       );
     }

@@ -233,6 +233,55 @@ export async function bookAppointment(input: {
 }
 
 /**
+ * Crea una cita de seguimiento (follow-up) desde una cita COMPLETED.
+ * Reutiliza la lógica de bookAppointment para validaciones.
+ * La cita original permanece COMPLETED sin cambios.
+ */
+export async function createFollowUp(input: {
+  patientId: string;
+  scheduleId: string;
+  date: string; // YYYY-MM-DD
+  originalAppointmentId?: string;
+}) {
+  // Si se proporciona originalAppointmentId, validar que existe y está COMPLETED
+  let originalObservation: string | null = null;
+  if (input.originalAppointmentId) {
+    const original = await prisma.appointment.findUnique({
+      where: { id: input.originalAppointmentId },
+      select: { status: true, patientId: true, observation: true },
+    });
+    if (!original) {
+      throw new AppError('NOT_FOUND', 'Cita original no encontrada');
+    }
+    if (original.status !== 'COMPLETED') {
+      throw new AppError('VALIDATION_ERROR', 'La cita base debe estar completada');
+    }
+    if (original.patientId !== input.patientId) {
+      throw new AppError('VALIDATION_ERROR', 'Paciente no coincide con cita base');
+    }
+    originalObservation = original.observation;
+  }
+
+  // Reutilizar bookAppointment para validaciones (bitmask, cupo, solapamiento, ventana, optimistic lock)
+  const booked = await bookAppointment({
+    patientId: input.patientId,
+    scheduleId: input.scheduleId,
+    date: input.date,
+  });
+
+  // Si hay observación original, copiarla con prefijo "Control: "
+  if (originalObservation) {
+    const updated = await prisma.appointment.update({
+      where: { id: booked.id },
+      data: { observation: `Control: ${originalObservation}` },
+    });
+    return { ...booked, observation: updated.observation };
+  }
+
+  return booked;
+}
+
+/**
  * Matriz de transiciones válidas y roles autorizados por transición.
  * OWNER = paciente dueño de la cita; STAFF = DOCTOR o ADMIN.
  */

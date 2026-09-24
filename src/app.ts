@@ -4,6 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+import websocket from '@fastify/websocket';
 import type { Mailer } from './shared/mail/mailer.js';
 import { ConsoleMailer } from './shared/mail/mailer.js';
 import { logger } from './shared/logging/logger.js';
@@ -21,6 +22,7 @@ import { patientProfileRoutes } from './modules/patients/patient.routes.js';
 import { extensionRoutes } from './modules/contacts/extension.routes.js';
 import { phoneRoutes } from './modules/contacts/phone.routes.js';
 import { appointmentRoutes } from './modules/appointments/appointment.routes.js';
+import { websocketRoutes } from './shared/websocket/websocket.js';
 
 export interface BuildAppOptions {
   mailer?: Mailer;
@@ -61,6 +63,9 @@ export function buildApp(options: BuildAppOptions = {}) {
 
   registerErrorHandler(app);
 
+  // WebSocket support
+  app.register(websocket);
+
   // Documentación OpenAPI/Swagger: solo en desarrollo o si se habilita
   if (enableDocs) {
     app.register(swagger, {
@@ -94,6 +99,9 @@ export function buildApp(options: BuildAppOptions = {}) {
   app.register(async function healthRoutes(instance) {
     instance.get('/health', async () => ({ status: 'ok' }));
   });
+
+  // WebSocket routes
+  app.register(websocketRoutes, { prefix: '/api/v1' });
 
   app.register(authRoutes, {
     prefix: '/api/v1/auth',

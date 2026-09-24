@@ -1,13 +1,27 @@
 ## MODIFIED Requirements
 
-### Requirement: Consulta de disponibilidad de horarios
+### Requirement: Creación de horarios
+El sistema SHALL crear horarios recurrentes para doctores por especialidad con días, horas y capacidad.
 
+#### Scenario: Crear horario semanal
+- **WHEN** admin crea horario para doctor/especialidad con días, horas inicio/fin y capacidad de cupos
+- **THEN** sistema crea registro de horario con parámetros especificados
+
+#### Scenario: Validar conflictos de horario
+- **WHEN** creando horario que se superpone con horario existente para mismo doctor/especialidad
+- **THEN** sistema rechaza con error de conflicto
+
+### Requirement: Consulta de disponibilidad de horarios
 El sistema SHALL proveer franjas horarias disponibles para reserva basándose en horarios, soportando consultas por fecha única y por rango de fechas (batch) para el selector de fecha del diálogo.
 
-#### Scenario: Obtener cupos disponibles para fecha única (existente)
+#### Scenario: Obtener cupos disponibles
 - **WHEN** paciente solicita cupos disponibles para doctor/especialidad/fecha via `GET /availability?doctorId=X&specialtyId=Y&date=2026-09-08`
 - **THEN** sistema devuelve franjas horarias con capacidad restante: `scheduleId`, `startTime`, `endTime`, `slotCapacity`, `booked`, `available`
 - **AND** excluye franjas con `available = 0`
+
+#### Scenario: Excluir cupos reservados
+- **WHEN** cupos están completamente reservados
+- **THEN** sistema los excluye de resultados disponibles
 
 #### Scenario: Obtener cupos disponibles para rango de fechas (batch) — NUEVO
 - **WHEN** frontend solicita disponibilidad para un mes via `GET /availability?doctorId=X&specialtyId=Y&scheduleId=Z&startDate=2026-09-01&endDate=2026-09-30`
@@ -22,14 +36,34 @@ El sistema SHALL proveer franjas horarias disponibles para reserva basándose en
 - **THEN** grid marca días con `available>0` = bold, `available=0` = normal, días sin horario = disabled
 - **THEN** lista vertical muestra cupos reales por fecha
 
-### Requirement: Listado de horarios con filtros
+### Requirement: Modificación de horarios
+El sistema SHALL permitir modificación de parámetros de horarios.
 
+#### Scenario: Actualizar horas de horario
+- **WHEN** admin actualiza horas o días de horario
+- **THEN** sistema actualiza horario y disponibilidad futura refleja cambios
+
+#### Scenario: Desactivar horario
+- **WHEN** admin desactiva horario
+- **THEN** horario ya no genera cupos disponibles pero citas existentes se preservan
+
+## ADDED Requirements
+
+### Requirement: Listado de horarios con filtros
 El sistema SHALL listar horarios con filtros y paginación, incluyendo `daysBitmask` en response para renderizado semanal en frontend.
 
 #### Scenario: Response incluye daysBitmask para agrupación semanal
 - **WHEN** `GET /schedules?doctorId=X&specialtyId=Y`
 - **THEN** cada item incluye `daysBitmask` (int) además de campos actuales
 - **AND** frontend usa `daysBitmask` para agrupar horarios en WeeklyScheduleList (ej: 31 = "Lunes – Viernes")
+
+### Requirement: Observaciones de horarios
+
+El sistema SHALL soportar notas/observaciones opcionales en horarios.
+
+#### Scenario: Agregar observación a horario
+- **WHEN** admin agrega observación a horario
+- **THEN** observación almacenada y visible en detalles de horario
 
 ## ADDED Requirements
 

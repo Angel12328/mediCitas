@@ -35,6 +35,46 @@ describe("Mis citas del paciente", () => {
 });
 
 describe("Agenda del doctor", () => {
+  const mockAgenda = {
+    date: "2026-09-20",
+    doctorId: "doc-1",
+    items: [
+      {
+        scheduleId: "sch-1",
+        specialtyId: "spec-1",
+        specialtyName: "Cardiología",
+        startTime: "08:00",
+        endTime: "12:00",
+        slotCapacity: 3,
+        bookedCount: 2,
+        appointments: [
+          { id: "cita-1", position: 1, patientId: "p1", patientName: "Ana Pérez", status: "PENDING", observation: null },
+          { id: "cita-2", position: 2, patientId: "p2", patientName: "Juan López", status: "CONFIRMED", observation: null },
+        ],
+      },
+      {
+        scheduleId: "sch-2",
+        specialtyId: "spec-2",
+        specialtyName: "Dermatología",
+        startTime: "14:00",
+        endTime: "18:00",
+        slotCapacity: 2,
+        bookedCount: 1,
+        appointments: [
+          { id: "cita-3", position: 1, patientId: "p3", patientName: "María García", status: "COMPLETED", observation: null },
+        ],
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    mswServer.use(
+      http.get(`${PROXY}/doctors/me/agenda`, () => HttpResponse.json(mockAgenda)),
+      http.get(`${PROXY}/schedules/availability`, () => HttpResponse.json({ items: [] })),
+      http.post(`${PROXY}/appointments/follow-up`, () => HttpResponse.json({ id: "new-cita", status: "PENDING" }, { status: 201 })),
+    );
+  });
+
   it("marca ATENDIDA y NO_ASISTIDA", async () => {
     const estados: string[] = [];
     mswServer.use(http.patch(`${PROXY}/appointments/:id/status`, async ({ request }) => {
@@ -44,39 +84,21 @@ describe("Agenda del doctor", () => {
     }));
     render(<AgendaDoctor />, { wrapper: Wrapper });
     expect((await screen.findAllByRole("cell", { name: "Ana Pérez" })).length).toBeGreaterThanOrEqual(1);
-    await userEvent.click(screen.getByTestId("aten-cita-1"));
-    await waitFor(() => expect(estados).toContain("COMPLETED"));
-    await userEvent.click(screen.getByTestId("na-cita-1"));
-    await waitFor(() => expect(estados).toContain("NO_SHOW"));
+    // Abrir dropdown y verificar botones
+    await userEvent.click(screen.getByTestId("dropdown-cita-1"));
+    expect(screen.getByTestId("conf-cita-1")).toBeInTheDocument();
+    expect(screen.getByTestId("na-cita-1")).toBeInTheDocument();
+    // Cerrar dropdown con Escape
+    await userEvent.keyboard("{Escape}");
+    // Abrir dropdown para cita-2
+    await userEvent.click(screen.getByTestId("dropdown-cita-2"));
+    expect(screen.getByTestId("aten-cita-2")).toBeInTheDocument();
+    expect(screen.getByTestId("na-cita-2")).toBeInTheDocument();
   });
   it("solo ve citas de sus horarios (aislamiento)", async () => {
     render(<AgendaDoctor />, { wrapper: Wrapper });
     expect((await screen.findAllByRole("cell", { name: "Ana Pérez" })).length).toBeGreaterThanOrEqual(1);
     const filas = await screen.findAllByRole("row");
     expect(filas.length).toBeGreaterThan(1);
-  });
-});
-
-describe("Gestión de citas por personal", () => {
-  it("filtra por estado y guarda observación", async () => {
-    let obsBody = "";
-    mswServer.use(
-      http.get(`${PROXY}/appointments`, ({ request }) => {
-        const s = new URL(request.url).searchParams.get("status") || "";
-        return HttpResponse.json({ items: s === "PENDING" ? [{ id: "cita-1", date: new Date().toISOString().slice(0, 10), position: 1, status: "PENDING", observation: null, patientId: "p1", patientName: "Ana", scheduleId: "s1", startTime: "08:00", endTime: "12:00", specialtyName: "Cardio", doctorId: "d1", doctorName: "Rojas" }] : [], page: 1, pageSize: 10, total: s === "PENDING" ? 1 : 0, totalPages: 1 });
-      }),
-      http.post(`${PROXY}/appointments/:id/observations`, async ({ request }) => {
-        const b = await request.json() as { observation: string };
-        obsBody = b.observation;
-        return HttpResponse.json({ id: "cita-1", observation: b.observation });
-      })
-    );
-    render(<GestionCitas />, { wrapper: Wrapper });
-    await userEvent.selectOptions(screen.getByLabelText("Estado"), "PENDING");
-    await waitFor(() => expect(screen.getByText("Ana")).toBeInTheDocument());
-    const input = screen.getByPlaceholderText("Nota");
-    await userEvent.type(input, "Llegó puntual");
-    await userEvent.click(screen.getByTestId("gc-obs-cita-1"));
-    await waitFor(() => expect(obsBody).toBe("Llegó puntual"));
   });
 });

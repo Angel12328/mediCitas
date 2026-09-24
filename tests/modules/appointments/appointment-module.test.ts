@@ -42,6 +42,12 @@ function nextMondayIso(): string {
   return new Date(now.getTime() + diff * 86400000).toISOString().slice(0, 10);
 }
 
+function nextWeekDate(fromDate: string): string {
+  const d = new Date(`${fromDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 7);
+  return d.toISOString().slice(0, 10);
+}
+
 async function emailsOf(userId: string): Promise<string> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
@@ -468,5 +474,135 @@ describe('11.4 observaciones de cita', () => {
       payload: { observation: 'intruso' },
     });
     expect(response.statusCode).toBe(403);
+  });
+});
+
+describe('11.7 cita de seguimiento (follow-up)', () => {
+  let completedAppointmentId = '';
+  let followUpPatientId = ''; // Patient record ID (no userId)
+
+  beforeAll(async () => {
+    // Crear paciente dedicado para follow-up
+    const f = await registerPatient('cita-followup');
+    const patientRecord = await prisma.patient.findUniqueOrThrow({
+      where: { userId: f.userId },
+    });
+    followUpPatientId = patientRecord.id;
+
+    // Crear cita y completarla
+    const booked = await book(tokenFor(f.userId, ['PATIENT']), queueScheduleId);
+    expect(booked.statusCode).toBe(201);
+    const appointmentId = String(booked.body['id']);
+    await setStatus(appointmentId, 'CONFIRMED');
+    await setStatus(appointmentId, 'COMPLETED');
+    completedAppointmentId = appointmentId;
+    createdAppointmentIds.push(appointmentId);
+  });
+
+  it('3.1 createFollowUp valida cita original COMPLETED', async () => {
+    const followUpDate = nextWeekDate(availabilityDate);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/appointments/follow-up',
+      headers: tokenFor(doctorUserId, ['DOCTOR']),
+      payload: {
+        patientId: followUpPatientId,
+        scheduleId: queueScheduleId,
+        date: followUpDate,
+        originalAppointmentId: completedAppointmentId,
+      },
+    });
+    if (response.statusCode !== 201) {
+      console.log('ERROR 3.1:', response.statusCode, response.body);
+    }
+    expect(response.statusCode).toBe(201);
+    const body = JSON.parse(response.body);
+    expect(body.status).toBe('PENDING');
+    expect(body.patientId).toBe(followUpPatientId);
+    createdAppointmentIds.push(body.id);
+  });
+
+  it('3.2 createFollowUp rechaza si original no es COMPLETED', async () => {
+    // Crear cita PENDING
+    const pending = await book(tokenFor(patientA.userId, ['PATIENT']), queueScheduleId);
+    const pendingId = String(pending.body['id']);
+    createdAppointmentIds.push(pendingId);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/appointments/follow-up',
+      headers: tokenFor(doctorUserId, ['DOCTOR']),
+      payload: {
+        patientId: patientA.userId,
+        scheduleId: queueScheduleId,
+        date: availabilityDate,
+        originalAppointmentId: pendingId,
+      },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).detail).toContain('completada');
+  });
+
+  it('3.3 createFollowUp copia observación con prefijo "Control: "', async () => {
+    // Crear cita con observación y completarla
+    const f = await registerPatient('cita-obs');
+    const patientRecord = await prisma.patient.findUniqueOrThrow({
+      where: { userId: f.userId },
+    });
+    const patientId = patientRecord.id;
+
+    const booked = await book(tokenFor(f.userId, ['PATIENT']), queueScheduleId);
+    const appointmentId = String(booked.body['id']);
+    createdAppointmentIds.push(appointmentId);
+
+    // Agregar observación
+    await app.inject({
+      method: 'POST',
+      url: `/api/v1/appointments/${appointmentId}/observations`,
+      headers: tokenFor(f.userId, ['PATIENT']),
+      payload: { observation: 'Hipertensión controlada' },
+    });
+
+    // Completar cita
+    await setStatus(appointmentId, 'CONFIRMED');
+    await setStatus(appointmentId, 'COMPLETED');
+
+    // Crear follow-up
+    const followUpDate = nextWeekDate(availabilityDate);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/appointments/follow-up',
+      headers: tokenFor(doctorUserId, ['DOCTOR']),
+      payload: {
+        patientId: patientId,
+        scheduleId: queueScheduleId,
+        date: followUpDate,
+        originalAppointmentId: appointmentId,
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    const body = JSON.parse(response.body);
+    expect(body.observation).toContain('Control: Hipertensión controlada');
+    createdAppointmentIds.push(body.id);
+  });
+
+  it('3.4 createFollowUp rechaza si paciente no coincide con original', async () => {
+    const patientBRecord = await prisma.patient.findUniqueOrThrow({
+      where: { userId: patientB.userId },
+    });
+    const followUpDate = nextWeekDate(availabilityDate);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/appointments/follow-up',
+      headers: tokenFor(doctorUserId, ['DOCTOR']),
+      payload: {
+        patientId: patientBRecord.id, // paciente distinto
+        scheduleId: queueScheduleId,
+        date: followUpDate,
+        originalAppointmentId: completedAppointmentId,
+      },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).detail).toContain('Paciente no coincide');
   });
 });

@@ -110,3 +110,7 @@ export const schedulesQuerySchema = z.object({
   specialtyId: z.string().uuid().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
 });
+
+export const agendaQuerySchema = z.object({
+  date: z.string().date('Formato esperado YYYY-MM-DD'),
+});

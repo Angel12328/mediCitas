@@ -10,6 +10,7 @@ export const API_URL = process.env.API_URL ?? "http://localhost:3000";
 
 export const ACCESS_COOKIE = "mc_at";
 export const REFRESH_COOKIE = "mc_rt";
+export const WS_ACCESS_COOKIE = "mc_at_ws";
 
 /** Duraciones en segundos (espejan JWT_*_EXPIRES_IN del backend) */
 export const ACCESS_COOKIE_MAX_AGE = 60 * 15; // 15 min
@@ -121,6 +122,16 @@ async function persistSession(session: RefreshResult): Promise<void> {
 export function cookieOptions(maxAge: number) {
   return {
     httpOnly: true,
+    sameSite: "lax" as const,
+    secure: secureCookies,
+    path: "/",
+    maxAge,
+  };
+}
+
+export function wsCookieOptions(maxAge: number) {
+  return {
+    httpOnly: false, // Accessible from JavaScript for WebSocket
     sameSite: "lax" as const,
     secure: secureCookies,
     path: "/",

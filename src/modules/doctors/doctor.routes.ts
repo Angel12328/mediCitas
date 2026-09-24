@@ -5,6 +5,7 @@ import { AppError } from '../../shared/errors/app-error.js';
 import { prisma } from '../../shared/database/client.js';
 import { buildOffsetPage, parseOffsetQuery } from '../../shared/pagination/pagination.js';
 import {
+  agendaQuerySchema,
   assignSpecialtySchema,
   createDoctorSchema,
   doctorIdParamSchema,
@@ -498,6 +499,163 @@ export async function doctorRoutes(app: AnyFastifyInstance): Promise<void> {
 
       reply.status(204);
       return null;
+    },
+  );
+
+  // ==================== AGENDA DOCTOR ====================
+
+  /** Resuelve el doctor asociado al usuario autenticado (rol DOCTOR) */
+  async function requireDoctorProfile(userId: string): Promise<{ id: string; status: 'ACTIVE' | 'INACTIVE' }> {
+    const employee = await prisma.employee.findFirst({
+      where: { userId, deletedAt: null },
+      include: { doctor: true },
+    });
+    const doctor = employee?.doctor;
+    if (!doctor || doctor.deletedAt) {
+      throw new AppError('NOT_FOUND', 'Perfil de doctor no encontrado');
+    }
+    return { id: doctor.id, status: doctor.status };
+  }
+
+  /** Verifica si el día de la semana (0=Dom...6=Sáb) está en el bitmask */
+  function maskIncludesDay(bitmask: number, dateISO: string): boolean {
+    // Parse as LOCAL date to avoid timezone shift (UTC vs local)
+    const parts = dateISO.split('-');
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+    const date = new Date(year, month - 1, day);
+    const jsDay = date.getDay(); // 0=Dom, 1=Lun... en hora LOCAL
+    // Convert JS day (0=Dom) to bitmask convention (bit 6=Dom, bit 0=Lun)
+    const dayBit = 1 << ((jsDay + 6) % 7);
+    return (bitmask & dayBit) !== 0;
+  }
+
+  interface AgendaHorario {
+    scheduleId: string;
+    specialtyId: string;
+    specialtyName: string;
+    startTime: string;
+    endTime: string;
+    slotCapacity: number;
+    bookedCount: number;
+    appointments: Array<{
+      id: string;
+      position: number | null;
+      patientId: string;
+      patientName: string;
+      status: string;
+      observation: string | null;
+    }>;
+  }
+
+  /** Agenda del día agrupada por horarios (solo DOCTOR o ADMIN) */
+  app.get(
+    '/me/agenda',
+    {
+      preHandler: [
+        authenticate,
+        requireRoles('DOCTOR', 'ADMIN'),
+        validate({ query: agendaQuerySchema }),
+      ],
+    },
+    async (request) => {
+      const user = request.user!;
+      const query = request.query as { date: string; doctorId?: string };
+      const { date } = query;
+
+      // Resolver doctorId: si es ADMIN y viene doctorId en query, usarlo; si no, el del usuario
+      let doctorId: string;
+      if (user.roles.includes('ADMIN') && query.doctorId) {
+        doctorId = query.doctorId;
+      } else {
+        const doctor = await requireDoctorProfile(user.id);
+        doctorId = doctor.id;
+      }
+
+      // 1. Obtener horarios ACTIVOS del doctor que atienden ese día
+      const schedules = await prisma.schedule.findMany({
+        where: {
+          doctorId,
+          deletedAt: null,
+          status: 'ACTIVE',
+        },
+        include: {
+          specialty: { select: { id: true, name: true } },
+        },
+      });
+
+      // Filtrar horarios que atienden el día solicitado
+      const schedulesForDate = schedules.filter((s) => maskIncludesDay(s.daysBitmask, date));
+      if (schedulesForDate.length === 0) {
+        return { date, doctorId, items: [] };
+      }
+
+      const scheduleIds = schedulesForDate.map((s) => s.id);
+      // Parse date as LOCAL midnight to match how appointments are stored
+      // (appointments are stored with local date converted to UTC by Prisma)
+      const parts = date.split('-');
+      const year = Number(parts[0]);
+      const month = Number(parts[1]);
+      const day = Number(parts[2]);
+      const appointmentDate = new Date(year, month - 1, day);
+
+      // 2. Obtener citas del día para esos horarios (no eliminadas)
+      const appointments = await prisma.appointment.findMany({
+        where: {
+          scheduleId: { in: scheduleIds },
+          date: appointmentDate,
+          deletedAt: null,
+        },
+        include: {
+          patient: {
+            include: {
+              user: {
+                select: {
+                  person: { select: { firstName: true, lastName: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: [{ scheduleId: 'asc' }, { position: 'asc' }],
+      });
+
+      // 3. Agrupar citas por scheduleId
+      const appointmentsBySchedule = new Map<string, typeof appointments>();
+      for (const appt of appointments) {
+        const arr = appointmentsBySchedule.get(appt.scheduleId) ?? [];
+        arr.push(appt);
+        appointmentsBySchedule.set(appt.scheduleId, arr);
+      }
+
+      // 4. Construir respuesta por horario
+      const items: AgendaHorario[] = schedulesForDate.map((schedule) => {
+        const scheduleAppointments = appointmentsBySchedule.get(schedule.id) ?? [];
+        const occupying = scheduleAppointments.filter(
+          (a) => ['PENDING', 'CONFIRMED', 'COMPLETED'].includes(a.status),
+        ).length;
+
+        return {
+          scheduleId: schedule.id,
+          specialtyId: schedule.specialty.id,
+          specialtyName: schedule.specialty.name,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          slotCapacity: schedule.slotCapacity,
+          bookedCount: occupying,
+          appointments: scheduleAppointments.map((a) => ({
+            id: a.id,
+            position: a.position,
+            patientId: a.patientId,
+            patientName: `${a.patient.user.person.firstName} ${a.patient.user.person.lastName}`,
+            status: a.status,
+            observation: a.observation,
+          })),
+        };
+      });
+
+      return { date, doctorId, items };
     },
   );
 }

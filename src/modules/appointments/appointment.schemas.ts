@@ -19,4 +19,11 @@ export const appointmentsQuerySchema = z.object({
   scheduleId: z.string().uuid().optional(),
   status: z.enum(['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
 });
+
+export const followUpSchema = z.object({
+  patientId: z.string().uuid(),
+  scheduleId: z.string().uuid(),
+  date: z.string().date('Formato esperado YYYY-MM-DD'),
+  originalAppointmentId: z.string().uuid().optional(),
+});
 //# sourceMappingURL=appointment.schemas.js.map

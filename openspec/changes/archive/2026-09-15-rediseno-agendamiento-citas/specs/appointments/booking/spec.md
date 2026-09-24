@@ -1,9 +1,4 @@
-# appointments/booking Specification
-
-## Purpose
-Define el flujo completo de reserva de citas médicas: paciente elige especialidad, doctor, horario y fecha mediante un wizard de dos pasos con cards visuales de doctores, calendario interactivo, y filtros; el sistema valida disponibilidad en tiempo real y crea la cita con una posición de cupo asignada tras confirmación explícita.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Paciente busca horarios disponibles
 
@@ -219,3 +214,23 @@ El sistema SHALL ser deployable automáticamente a Vercel (frontend) y Render (b
 - **WHEN** fallback: frontend deploy falla
 - **THEN** job `deploy-backend` ya completado no se revierte (idempotente)
 - **WHEN** rollback manual: `git revert` + push → nuevo deploy automático
+
+## REMOVED Requirements
+
+### Requirement: Calendario interactivo mensual standalone en wizard
+
+**Reason**: Reemplazado por DatePickerWithAvailability dentro de ScheduleDialog (vista 2), que muestra grid mes + lista cupos contextualizada al horario seleccionado.
+
+**Migration**: Eliminar componente `MonthCalendar` y hook `useAvailabilityByDateRange`. Usar `ScheduleDialog` + `DatePickerWithAvailability`.
+
+### Requirement: Panel de horarios lateral en wizard
+
+**Reason**: Reemplazado por flujo en ScheduleDialog: selección de horario en Vista 1 → selección de fecha en Vista 2 → confirmación.
+
+**Migration**: Eliminar renderizado condicional de panel horarios en `agendar-wizard.tsx`. La lista de horarios ahora vive en WeeklyScheduleList.
+
+### Requirement: Doctor card muestra "Próximo: HH-HH · N cupos"
+
+**Reason**: Reemplazado por resumen semanal "Lun-Vie 08-12, 14-17 | Sáb 09-13" + badge "3 horarios · 8 cupos próximo" + botón `[Ver agenda]`. El "próximo" específico inducía a error si el paciente quería otro día.
+
+**Migration**: Actualizar `DoctorCard` props y renderizado. Nuevo prop `availabilitySummary` con `nextSlot` y `totalSlotsThisMonth`.

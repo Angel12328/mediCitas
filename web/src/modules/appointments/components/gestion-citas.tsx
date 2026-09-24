@@ -19,7 +19,7 @@ export function GestionCitas(){
       <Table><TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>Paciente</TableHead><TableHead>Doctor</TableHead><TableHead>Estado</TableHead><TableHead>Observación</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader>
       <TableBody>{(lista.data?.items??[]).map(c=> (
         <TableRow key={c.id}><TableCell>{String(c.date).slice(0,10)}</TableCell><TableCell>{c.patientName}</TableCell><TableCell>{c.doctorName}</TableCell><TableCell>{c.status}</TableCell><TableCell className="max-w-[20ch] truncate">{c.observation ?? "—"}</TableCell><TableCell className="flex flex-wrap gap-2">
-          {(c.status==="PENDING"||c.status==="CONFIRMED") ? <Button size="sm" variant="outline" onClick={()=>cambiar.mutate({id:c.id, status:"CANCELLED"})} data-testid={`gc-cancelar-${c.id}`}>Cancelar</Button> : null}
+          {(c.status==="PENDING"||c.status==="CONFIRMED") ? <Button size="sm" variant="outline" onClick={()=>cambiar({id:c.id, status:"CANCELLED"})} data-testid={`gc-cancelar-${c.id}`}>Cancelar</Button> : null}
           <div className="flex items-center gap-1"><Input placeholder="Nota" className="h-8 w-28" value={obsPorId[c.id]??""} onChange={e=>setObsPorId(s=>({...s,[c.id]:e.target.value}))} /><Button size="sm" variant="ghost" onClick={()=>obs.mutate({id:c.id, observation: obsPorId[c.id]??""})} data-testid={`gc-obs-${c.id}`}>Guardar nota</Button></div>
         </TableCell></TableRow>
       ))}</TableBody></Table>

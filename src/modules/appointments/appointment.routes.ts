@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { authenticate } from '../../shared/auth/guards.js';
+import { authenticate, requireRoles } from '../../shared/auth/guards.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import { prisma } from '../../shared/database/client.js';
 import { buildOffsetPage, parseOffsetQuery } from '../../shared/pagination/pagination.js';
@@ -9,9 +9,11 @@ import {
   appointmentIdParamSchema,
   appointmentsQuerySchema,
   bookAppointmentSchema,
+  followUpSchema,
   updateStatusSchema,
 } from './appointment.schemas.js';
-import { bookAppointment, canTransition } from './appointment.service.js';
+import { bookAppointment, canTransition, createFollowUp } from './appointment.service.js';
+import { broadcastToDoctor } from '../../shared/websocket/websocket.js';
 const APPOINTMENT_INCLUDE = {
   patient: {
     include: {
@@ -25,7 +27,7 @@ const APPOINTMENT_INCLUDE = {
   },
   schedule: {
     include: {
-      specialty: { select: { name: true } },
+      specialty: { select: { id: true, name: true } },
       doctor: {
         include: {
           employee: {
@@ -52,6 +54,7 @@ function toDto(appointment) {
     scheduleId: appointment.scheduleId,
     startTime: appointment.schedule.startTime,
     endTime: appointment.schedule.endTime,
+    specialtyId: appointment.schedule.specialty.id,
     specialtyName: appointment.schedule.specialty.name,
     doctorId: appointment.schedule.doctor.id,
     doctorName: `${appointment.schedule.doctor.employee.user.person.firstName} ${appointment.schedule.doctor.employee.user.person.lastName}`,
@@ -175,7 +178,6 @@ export async function appointmentRoutes(app) {
       const { id } = request.params;
       const { status: nextStatus } = request.body;
       const { dto } = await loadScopedAppointment(user.id, user.roles, id);
-      // El dueño es quien tiene el perfil de paciente vinculado a la cita
       const ownerPatientProfile = await prisma.patient.findFirst({
         where: { userId: user.id, deletedAt: null },
         select: { id: true },
@@ -194,6 +196,22 @@ export async function appointmentRoutes(app) {
         where: { id },
         data: { status: nextStatus },
       });
+
+      broadcastToDoctor(dto.doctorId, {
+        type: 'APPOINTMENT_STATUS_CHANGED',
+        payload: {
+          appointmentId: updated.id,
+          patientId: dto.patientId,
+          doctorId: dto.doctorId,
+          scheduleId: dto.scheduleId,
+          status: updated.status,
+          previousStatus: dto.status,
+          date: dto.date,
+          position: dto.position,
+        },
+        timestamp: new Date().toISOString(),
+      });
+
       return { id: updated.id, status: updated.status, previousStatus: dto.status };
     },
   );
@@ -214,7 +232,67 @@ export async function appointmentRoutes(app) {
       const { dto } = await loadScopedAppointment(user.id, user.roles, id);
       const newObservation = dto.observation ? `${dto.observation}\n${observation}` : observation;
       await prisma.appointment.update({ where: { id }, data: { observation: newObservation } });
+
+      broadcastToDoctor(dto.doctorId, {
+        type: 'APPOINTMENT_OBSERVATION_ADDED',
+        payload: {
+          appointmentId: id,
+          patientId: dto.patientId,
+          doctorId: dto.doctorId,
+          scheduleId: dto.scheduleId,
+          status: dto.status,
+          date: dto.date,
+          position: dto.position,
+        },
+        timestamp: new Date().toISOString(),
+      });
+
       return { id, observation: newObservation };
+    },
+  );
+
+  /** Crear cita de seguimiento (follow-up) desde cita COMPLETED (DOCTOR/Admin) */
+  app.post(
+    '/follow-up',
+    {
+      preHandler: [
+        authenticate,
+        requireRoles('DOCTOR', 'ADMIN'),
+        validate({ body: followUpSchema }),
+      ],
+    },
+    async (request, reply) => {
+      const { patientId, scheduleId, date, originalAppointmentId } = request.body as {
+        patientId: string;
+        scheduleId: string;
+        date: string;
+        originalAppointmentId?: string;
+      };
+      request.log.info({ patientId, scheduleId, date, originalAppointmentId }, 'follow-up request');
+      const booked = await createFollowUp({ patientId, scheduleId, date, originalAppointmentId });
+      reply.status(201);
+
+      const schedule = await prisma.schedule.findUnique({
+        where: { id: scheduleId },
+        select: { doctorId: true },
+      });
+      if (schedule) {
+        broadcastToDoctor(schedule.doctorId, {
+          type: 'APPOINTMENT_CREATED',
+          payload: {
+            appointmentId: booked.id,
+            patientId: booked.patientId,
+            doctorId: schedule.doctorId,
+            scheduleId: booked.scheduleId,
+            status: booked.status,
+            date: booked.date,
+            position: booked.position,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      return booked;
     },
   );
 }

@@ -12,7 +12,9 @@ import {
   API_URL,
   REFRESH_COOKIE,
   REFRESH_COOKIE_MAX_AGE,
+  WS_ACCESS_COOKIE,
   cookieOptions,
+  wsCookieOptions,
 } from "@/shared/api/api-client";
 import { apiErrorFromResponse } from "@/shared/api/errors";
 import { loginSchema, loginResponseSchema } from "@/modules/auth/schemas";
@@ -61,6 +63,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   });
   response.cookies.set(ACCESS_COOKIE, session.accessToken, cookieOptions(ACCESS_COOKIE_MAX_AGE));
   response.cookies.set(REFRESH_COOKIE, session.refreshToken, cookieOptions(REFRESH_COOKIE_MAX_AGE));
+  // Non-httpOnly cookie for WebSocket access
+  response.cookies.set(WS_ACCESS_COOKIE, session.accessToken, wsCookieOptions(ACCESS_COOKIE_MAX_AGE));
   return response;
 }
 
@@ -84,7 +88,9 @@ export async function DELETE(request: Request): Promise<NextResponse> {
 
   const response = NextResponse.json({ ok: true });
   const cleared = cookieOptions(0);
+  const wsCleared = wsCookieOptions(0);
   response.cookies.set(ACCESS_COOKIE, "", cleared);
   response.cookies.set(REFRESH_COOKIE, "", cleared);
+  response.cookies.set(WS_ACCESS_COOKIE, "", wsCleared);
   return response;
 }

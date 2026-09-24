@@ -25,5 +25,11 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: undefined,
+  webServer: {
+    command: "npm run dev",
+    port: 3002,
+    reuseExistingServer: !isCI,
+    timeout: 120_000,
+    env: { PORT: "3002" },
+  },
 });
