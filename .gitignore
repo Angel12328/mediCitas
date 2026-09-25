@@ -18,3 +18,5 @@ web/tsconfig.tsbuildinfo
 openspec/changes/*/node_modules/
 
 /src/generated/prisma
+.vercel
+.env*
