@@ -4,5 +4,8 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "rootDirectory": "web"
+  "rootDirectory": "web",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://medicitas-api.onrender.com"
+  }
 }
